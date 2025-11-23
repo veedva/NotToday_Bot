@@ -419,7 +419,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 reply_markup=get_main_keyboard() if i == len(responses)-1 else None
             )
     
-    elif text == "🔥 Держусь!":
+elif text == "🔥 Держусь!":
     if not can_broadcast_today(chat_id):
         await send_with_autodelete(
             context.bot,
