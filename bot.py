@@ -1,4 +1,5 @@
-import logging
+async def send_with_autodelete(bot, chat_id, text, delay_seconds=60, reply_markup=None, no_delete=False):
+    """Отправляет сообщение и планimport logging
 import random
 import json
 import os
@@ -200,6 +201,21 @@ def store_message_id(user_id, message_id):
     data[str(user_id)]['message_ids'] = data[str(user_id)]['message_ids'][-50:]
     save_user_data(data)
 
+def save_welcome_message_id(user_id, message_id):
+    """Сохраняем ID приветственного сообщения"""
+    data = load_user_data()
+    if str(user_id) not in data:
+        data[str(user_id)] = {}
+    data[str(user_id)]['welcome_message_id'] = message_id
+    save_user_data(data)
+
+def delete_old_welcome(user_id):
+    """Удаляем старое приветственное сообщение если есть"""
+    data = load_user_data()
+    if str(user_id) in data and 'welcome_message_id' in data[str(user_id)]:
+        return data[str(user_id)].get('welcome_message_id')
+    return None
+
 def get_and_clear_message_ids(user_id):
     """Получаем и очищаем список ID сообщений"""
     data = load_user_data()
@@ -226,13 +242,12 @@ async def send_with_autodelete(bot, chat_id, text, delay_seconds=60, reply_marku
     """Отправляет сообщение и планирует его удаление"""
     msg = await bot.send_message(chat_id, text, reply_markup=reply_markup)
     
-    # Если no_delete=True - не удаляем (для приветствия и паузы)
+    # Если no_delete=True - не удаляем
     if no_delete:
         return msg
     
-    # Сохраняем для clean_chat только если нет клавиатуры
-    if reply_markup is None:
-        store_message_id(chat_id, msg.message_id)
+    # Сохраняем для clean_chat
+    store_message_id(chat_id, msg.message_id)
     
     # Планируем удаление
     async def delete_later():
@@ -317,6 +332,14 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     # Очищаем старые сообщения
     await clean_chat(context.bot, chat_id)
     
+    # Удаляем старое приветствие если есть
+    old_welcome_id = delete_old_welcome(chat_id)
+    if old_welcome_id:
+        try:
+            await context.bot.delete_message(chat_id, old_welcome_id)
+        except:
+            pass
+    
     # Сохраняем дату старта
     data = load_user_data()
     if str(chat_id) not in data:
@@ -329,7 +352,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data[str(chat_id)]['message_ids'] = []
     save_user_data(data)
     
-    await send_with_autodelete(
+    msg = await send_with_autodelete(
         context.bot,
         chat_id,
         "Привет.\n"
@@ -338,6 +361,9 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_keyboard(),
         no_delete=True
     )
+    
+    # Сохраняем ID нового приветствия
+    save_welcome_message_id(chat_id, msg.message_id)
     
     # Удаляем старые задачи
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}"]:
@@ -562,7 +588,5 @@ def main():
     logger.info("Бот запущен")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
-if __name__ == '__main__':
-    main()
 if __name__ == '__main__':
     main()
