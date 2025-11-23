@@ -389,7 +389,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 import asyncio
                 await asyncio.sleep(random.uniform(1.0, 2.0))
             # БЕЗ клавиатуры - она уже есть в приветствии
-            await send_with_autodelete(context.bot, chat_id, resp, delay_seconds=10)30)
+            await send_with_autodelete(context.bot, chat_id, resp, delay_seconds=10)
     
     elif text == "😔 Тяжело":
         context.user_data['awaiting_relapse_confirm'] = True
