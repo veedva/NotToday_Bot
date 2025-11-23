@@ -371,8 +371,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except:
         pass
     
-    # Очищаем старые сообщения при каждом действии
-    await clean_chat(context.bot, chat_id)
+    # Чистим чат ТОЛЬКО при старте/паузе, не при каждой кнопке
+    if text in ["▶ Начать", "⏸ Пауза"]:
+        await clean_chat(context.bot, chat_id)
     
     if text == "▶ Начать":
         await start(update, context)
@@ -389,12 +390,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     context.bot, 
                     chat_id, 
                     resp, 
-                    delay_seconds=30,
+                    delay_seconds=120,  # 2 минуты для последнего
                     reply_markup=get_main_keyboard(),
                     keep_keyboard=True
                 )
             else:
-                await send_with_autodelete(context.bot, chat_id, resp, delay_seconds=30)
+                await send_with_autodelete(context.bot, chat_id, resp, delay_seconds=120)  # 2 минуты30)
     
     elif text == "😔 Тяжело":
         context.user_data['awaiting_relapse_confirm'] = True
@@ -465,6 +466,9 @@ def main():
     
     logger.info("Бот запущен")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
+
+if __name__ == '__main__':
+    main()
 
 if __name__ == '__main__':
     main()
