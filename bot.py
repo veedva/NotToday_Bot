@@ -1,5 +1,4 @@
-async def send_with_autodelete(bot, chat_id, text, delay_seconds=60, reply_markup=None, no_delete=False):
-    """Отправляет сообщение и планimport logging
+import logging
 import random
 import json
 import os
@@ -158,22 +157,17 @@ def reset_counter(user_id):
         save_user_data(data)
 
 def can_broadcast_today(user_id):
-    """Проверяет, может ли пользователь отправить рассылку сегодня"""
     data = load_user_data()
     if str(user_id) not in data:
         return True
-    
     last_broadcast = data[str(user_id)].get('last_broadcast')
     if not last_broadcast:
         return True
-    
     last_date = datetime.fromisoformat(last_broadcast).date()
     today = datetime.now().date()
-    
     return last_date < today
 
 def mark_broadcast_sent(user_id):
-    """Отмечает что пользователь отправил рассылку сегодня"""
     data = load_user_data()
     if str(user_id) not in data:
         data[str(user_id)] = {}
@@ -181,7 +175,6 @@ def mark_broadcast_sent(user_id):
     save_user_data(data)
 
 def get_all_active_users():
-    """Возвращает список всех активных пользователей"""
     data = load_user_data()
     active_users = []
     for user_id, user_data in data.items():
@@ -190,19 +183,16 @@ def get_all_active_users():
     return active_users
 
 def store_message_id(user_id, message_id):
-    """Сохраняем ID сообщения для последующего удаления"""
     data = load_user_data()
     if str(user_id) not in data:
         data[str(user_id)] = {}
     if 'message_ids' not in data[str(user_id)]:
         data[str(user_id)]['message_ids'] = []
     data[str(user_id)]['message_ids'].append(message_id)
-    # Храним только последние 50 ID
     data[str(user_id)]['message_ids'] = data[str(user_id)]['message_ids'][-50:]
     save_user_data(data)
 
 def save_welcome_message_id(user_id, message_id):
-    """Сохраняем ID приветственного сообщения"""
     data = load_user_data()
     if str(user_id) not in data:
         data[str(user_id)] = {}
@@ -210,14 +200,12 @@ def save_welcome_message_id(user_id, message_id):
     save_user_data(data)
 
 def delete_old_welcome(user_id):
-    """Удаляем старое приветственное сообщение если есть"""
     data = load_user_data()
     if str(user_id) in data and 'welcome_message_id' in data[str(user_id)]:
         return data[str(user_id)].get('welcome_message_id')
     return None
 
 def get_and_clear_message_ids(user_id):
-    """Получаем и очищаем список ID сообщений"""
     data = load_user_data()
     if str(user_id) in data and 'message_ids' in data[str(user_id)]:
         ids = data[str(user_id)]['message_ids']
@@ -230,7 +218,6 @@ def get_and_clear_message_ids(user_id):
 #  Очистка чата
 # =====================================================
 async def clean_chat(bot, chat_id):
-    """Удаляет все сохранённые сообщения бота"""
     message_ids = get_and_clear_message_ids(chat_id)
     for msg_id in message_ids:
         try:
@@ -242,14 +229,11 @@ async def send_with_autodelete(bot, chat_id, text, delay_seconds=60, reply_marku
     """Отправляет сообщение и планирует его удаление"""
     msg = await bot.send_message(chat_id, text, reply_markup=reply_markup)
     
-    # Если no_delete=True - не удаляем
     if no_delete:
         return msg
     
-    # Сохраняем для clean_chat
     store_message_id(chat_id, msg.message_id)
     
-    # Планируем удаление
     async def delete_later():
         await asyncio.sleep(delay_seconds)
         try:
@@ -267,25 +251,17 @@ async def send_morning_message(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.chat_id
     data = load_user_data()
     
-    # Проверяем активность
     if not data.get(str(chat_id), {}).get('active', True):
         return
     
     days = get_days_count(chat_id)
     
-    # Если веха - отправляем особое сообщение
     if days in MILESTONES:
         text = MILESTONES[days]
     else:
         text = random.choice(MORNING_MESSAGES)
     
-    await send_with_autodelete(
-        context.bot, 
-        chat_id, 
-        text, 
-        delay_seconds=3600,
-        reply_markup=get_main_keyboard()  # ВСЕГДА с клавиатурой
-    )
+    await send_with_autodelete(context.bot, chat_id, text, delay_seconds=3600, reply_markup=get_main_keyboard())
     logger.info(f"Утреннее сообщение отправлено пользователю {chat_id}")
 
 async def send_evening_message(context: ContextTypes.DEFAULT_TYPE):
@@ -296,13 +272,7 @@ async def send_evening_message(context: ContextTypes.DEFAULT_TYPE):
         return
     
     text = random.choice(EVENING_MESSAGES)
-    await send_with_autodelete(
-        context.bot, 
-        chat_id, 
-        text, 
-        delay_seconds=3600,
-        reply_markup=get_main_keyboard()  # ВСЕГДА с клавиатурой
-    )
+    await send_with_autodelete(context.bot, chat_id, text, delay_seconds=3600, reply_markup=get_main_keyboard())
     logger.info(f"Вечернее сообщение отправлено пользователю {chat_id}")
 
 async def send_night_message(context: ContextTypes.DEFAULT_TYPE):
@@ -313,13 +283,7 @@ async def send_night_message(context: ContextTypes.DEFAULT_TYPE):
         return
     
     text = random.choice(NIGHT_MESSAGES)
-    await send_with_autodelete(
-        context.bot, 
-        chat_id, 
-        text, 
-        delay_seconds=3600,
-        reply_markup=get_main_keyboard()  # ВСЕГДА с клавиатурой
-    )
+    await send_with_autodelete(context.bot, chat_id, text, delay_seconds=3600, reply_markup=get_main_keyboard())
     logger.info(f"Ночное сообщение отправлено пользователю {chat_id}")
 
 # =====================================================
@@ -329,10 +293,8 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user = update.effective_user
     chat_id = update.effective_chat.id
     
-    # Очищаем старые сообщения
     await clean_chat(context.bot, chat_id)
     
-    # Удаляем старое приветствие если есть
     old_welcome_id = delete_old_welcome(chat_id)
     if old_welcome_id:
         try:
@@ -340,7 +302,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         except:
             pass
     
-    # Сохраняем дату старта
     data = load_user_data()
     if str(chat_id) not in data:
         data[str(chat_id)] = {}
@@ -355,58 +316,32 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = await send_with_autodelete(
         context.bot,
         chat_id,
-        "Привет.\n"
-        "Я буду писать тебе время от времени. Диалоги стираются, не переживай.\n\n"
-        "Держись. Не сегодня.",
+        "Привет.\nЯ буду писать тебе время от времени. Диалоги стираются, не переживай.\n\nДержись. Не сегодня.",
         reply_markup=get_main_keyboard(),
         no_delete=True
     )
     
-    # Сохраняем ID нового приветствия
     save_welcome_message_id(chat_id, msg.message_id)
     
-    # Удаляем старые задачи
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}"]:
         for job in context.job_queue.get_jobs_by_name(name):
             job.schedule_removal()
     
-    # Запускаем новые
-    context.job_queue.run_daily(
-        send_morning_message,
-        time=time(hour=9, minute=0, second=0),
-        chat_id=chat_id,
-        name=f"morning_{chat_id}"
-    )
-    
-    context.job_queue.run_daily(
-        send_evening_message,
-        time=time(hour=18, minute=0, second=0),
-        chat_id=chat_id,
-        name=f"evening_{chat_id}"
-    )
-    
-    context.job_queue.run_daily(
-        send_night_message,
-        time=time(hour=23, minute=0, second=0),
-        chat_id=chat_id,
-        name=f"night_{chat_id}"
-    )
+    context.job_queue.run_daily(send_morning_message, time=time(hour=9, minute=0, second=0), chat_id=chat_id, name=f"morning_{chat_id}")
+    context.job_queue.run_daily(send_evening_message, time=time(hour=18, minute=0, second=0), chat_id=chat_id, name=f"evening_{chat_id}")
+    context.job_queue.run_daily(send_night_message, time=time(hour=23, minute=0, second=0), chat_id=chat_id, name=f"night_{chat_id}")
     
     logger.info(f"Пользователь {user.first_name} ({user.id}) запустил бота")
 
 async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
-    
-    # Очищаем чат
     await clean_chat(context.bot, chat_id)
     
-    # Отмечаем как неактивного
     data = load_user_data()
     if str(chat_id) in data:
         data[str(chat_id)]['active'] = False
         save_user_data(data)
     
-    # Удаляем задачи
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}"]:
         for job in context.job_queue.get_jobs_by_name(name):
             job.schedule_removal()
@@ -423,12 +358,7 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     reset_counter(chat_id)
-    await send_with_autodelete(
-        context.bot,
-        chat_id,
-        "Счётчик обнулён. Начинаем заново.",
-        reply_markup=get_main_keyboard()  # С клавиатурой
-    )
+    await send_with_autodelete(context.bot, chat_id, "Счётчик обнулён. Начинаем заново.", reply_markup=get_main_keyboard())
     logger.info(f"Пользователь {chat_id} сбросил счётчик")
 
 # =====================================================
@@ -439,23 +369,19 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_message_id = update.message.message_id
     
-    # Чистим чат ТОЛЬКО при старте/паузе
     if text in ["▶ Начать", "⏸ Пауза"]:
         await clean_chat(context.bot, chat_id)
-        # Удаляем сообщение пользователя сразу
         try:
             await update.message.delete()
         except:
             pass
     else:
-        # Для остальных кнопок - удаляем через 60 секунд
         async def delete_user_msg():
             await asyncio.sleep(60)
             try:
                 await context.bot.delete_message(chat_id, user_message_id)
             except:
                 pass
-        
         asyncio.create_task(delete_user_msg())
     
     if text == "▶ Начать":
@@ -466,112 +392,58 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i, resp in enumerate(responses):
             if i > 0:
                 await asyncio.sleep(random.uniform(1.0, 2.0))
-            # Последнее сообщение с клавиатурой
             if i == len(responses) - 1:
-                await send_with_autodelete(
-                    context.bot, 
-                    chat_id, 
-                    resp,
-                    reply_markup=get_main_keyboard()
-                )
+                await send_with_autodelete(context.bot, chat_id, resp, reply_markup=get_main_keyboard())
             else:
                 await send_with_autodelete(context.bot, chat_id, resp)
     
     elif text == "🔥 Держусь!":
-        # Проверяем можно ли отправить сегодня
         if not can_broadcast_today(chat_id):
-            await send_with_autodelete(
-                context.bot,
-                chat_id,
-                "Ты уже отправил сигнал сегодня. Завтра снова сможешь.",
-                reply_markup=get_main_keyboard()  # С клавиатурой
-            )
+            await send_with_autodelete(context.bot, chat_id, "Ты уже отправил сигнал сегодня. Завтра снова сможешь.", reply_markup=get_main_keyboard())
             return
         
-        # Отправляем всем активным пользователям (кроме отправителя)
         all_users = get_all_active_users()
         sent_count = 0
-        
         for user_id in all_users:
-            if user_id != chat_id:  # Не отправляем самому себе
+            if user_id != chat_id:
                 try:
-                    await context.bot.send_message(
-                        user_id,
-                        "💪\n\nКто-то справляется. Ты тоже можешь.",
-                        reply_markup=get_main_keyboard()  # С клавиатурой!
-                    )
+                    await context.bot.send_message(user_id, "💪\n\nКто-то справляется. Ты тоже можешь.", reply_markup=get_main_keyboard())
                     sent_count += 1
-                    await asyncio.sleep(0.1)  # Небольшая задержка между отправками
+                    await asyncio.sleep(0.1)
                 except Exception as e:
                     logger.error(f"Не удалось отправить сообщение пользователю {user_id}: {e}")
         
-        # Отмечаем что отправил
         mark_broadcast_sent(chat_id)
         
-        # Подтверждение отправителю
         if sent_count > 0:
-            await send_with_autodelete(
-                context.bot,
-                chat_id,
-                f"Сигнал отправлен ({sent_count} чел). Ты молодец.",
-                reply_markup=get_main_keyboard()  # С клавиатурой
-            )
+            await send_with_autodelete(context.bot, chat_id, f"Сигнал отправлен ({sent_count} чел). Ты молодец.", reply_markup=get_main_keyboard())
         else:
-            await send_with_autodelete(
-                context.bot,
-                chat_id,
-                "Пока ты один используешь бота. Но ты всё равно молодец.",
-                reply_markup=get_main_keyboard()  # С клавиатурой
-            )
+            await send_with_autodelete(context.bot, chat_id, "Пока ты один используешь бота. Но ты всё равно молодец.", reply_markup=get_main_keyboard())
         
         logger.info(f"Пользователь {chat_id} отправил broadcast {sent_count} получателям")
     
     elif text == "😔 Тяжело":
         context.user_data['awaiting_relapse_confirm'] = True
-        await send_with_autodelete(
-            context.bot,
-            chat_id,
-            "Брат, ты сорвался?",
-            reply_markup=get_relapse_keyboard()  # 60 сек по умолчанию
-        )
+        await send_with_autodelete(context.bot, chat_id, "Брат, ты сорвался?", reply_markup=get_relapse_keyboard())
     
     elif text == "📊 Дни":
         days = get_days_count(chat_id)
+        msg_text = f"Прошло {days} дней" if days != 1 else "Прошёл 1 день"
         if days == 0:
             msg_text = "Первый день. Начинаем."
-        elif days == 1:
-            msg_text = "Прошёл 1 день"
-        else:
-            msg_text = f"Прошло {days} дней"
-        await send_with_autodelete(
-            context.bot, 
-            chat_id, 
-            msg_text,
-            reply_markup=get_main_keyboard()  # С клавиатурой
-        )
+        await send_with_autodelete(context.bot, chat_id, msg_text, reply_markup=get_main_keyboard())
     
     elif text == "⏸ Пауза":
         await stop(update, context)
     
-    # Обработка подтверждения срыва
     elif context.user_data.get('awaiting_relapse_confirm'):
         if text == "Да":
             reset_counter(chat_id)
-            await send_with_autodelete(
-                context.bot,
-                chat_id,
-                "Ничего страшного. Начнём снова.",
-                reply_markup=get_main_keyboard()  # 60 сек по умолчанию
-            )
+            await send_with_autodelete(context.bot, chat_id, "Ничего страшного. Начнём снова.", reply_markup=get_main_keyboard())
             logger.info(f"Пользователь {chat_id} подтвердил срыв")
         elif text == "Нет":
             responses = ["Красава, держись. Я с тобой.", "Молодец, брат. Ты сильный.", "Уважаю. Держимся вместе."]
-            await send_with_autodelete(
-                context.bot,
-                chat_id,
-                random.choice(responses),
-                reply_markup=get_main_keyboard()  # 60 сек по умолчанию
-            )
+            await send_with_autodelete(context.bot, chat_id, random.choice(responses), reply_markup=get_main_keyboard())
         context.user_data['awaiting_relapse_confirm'] = False
 
 # =====================================================
