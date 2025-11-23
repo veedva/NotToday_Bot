@@ -264,7 +264,13 @@ async def send_morning_message(context: ContextTypes.DEFAULT_TYPE):
     else:
         text = random.choice(MORNING_MESSAGES)
     
-    await send_with_autodelete(context.bot, chat_id, text, delay_seconds=3600)
+    await send_with_autodelete(
+        context.bot, 
+        chat_id, 
+        text, 
+        delay_seconds=3600,
+        reply_markup=get_main_keyboard()  # ВСЕГДА с клавиатурой
+    )
     logger.info(f"Утреннее сообщение отправлено пользователю {chat_id}")
 
 async def send_evening_message(context: ContextTypes.DEFAULT_TYPE):
@@ -275,7 +281,13 @@ async def send_evening_message(context: ContextTypes.DEFAULT_TYPE):
         return
     
     text = random.choice(EVENING_MESSAGES)
-    await send_with_autodelete(context.bot, chat_id, text, delay_seconds=3600)
+    await send_with_autodelete(
+        context.bot, 
+        chat_id, 
+        text, 
+        delay_seconds=3600,
+        reply_markup=get_main_keyboard()  # ВСЕГДА с клавиатурой
+    )
     logger.info(f"Вечернее сообщение отправлено пользователю {chat_id}")
 
 async def send_night_message(context: ContextTypes.DEFAULT_TYPE):
@@ -286,7 +298,13 @@ async def send_night_message(context: ContextTypes.DEFAULT_TYPE):
         return
     
     text = random.choice(NIGHT_MESSAGES)
-    await send_with_autodelete(context.bot, chat_id, text, delay_seconds=3600)
+    await send_with_autodelete(
+        context.bot, 
+        chat_id, 
+        text, 
+        delay_seconds=3600,
+        reply_markup=get_main_keyboard()  # ВСЕГДА с клавиатурой
+    )
     logger.info(f"Ночное сообщение отправлено пользователю {chat_id}")
 
 # =====================================================
@@ -382,8 +400,8 @@ async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_with_autodelete(
         context.bot,
         chat_id,
-        "Счётчик обнулён. Начинаем заново."
-        # 60 сек по умолчанию
+        "Счётчик обнулён. Начинаем заново.",
+        reply_markup=get_main_keyboard()  # С клавиатурой
     )
     logger.info(f"Пользователь {chat_id} сбросил счётчик")
 
@@ -422,7 +440,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for i, resp in enumerate(responses):
             if i > 0:
                 await asyncio.sleep(random.uniform(1.0, 2.0))
-            await send_with_autodelete(context.bot, chat_id, resp)  # 60 сек по умолчанию
+            # Последнее сообщение с клавиатурой
+            if i == len(responses) - 1:
+                await send_with_autodelete(
+                    context.bot, 
+                    chat_id, 
+                    resp,
+                    reply_markup=get_main_keyboard()
+                )
+            else:
+                await send_with_autodelete(context.bot, chat_id, resp)
     
     elif text == "🔥 Держусь!":
         # Проверяем можно ли отправить сегодня
@@ -430,7 +457,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_with_autodelete(
                 context.bot,
                 chat_id,
-                "Ты уже отправил сигнал сегодня. Завтра снова сможешь."
+                "Ты уже отправил сигнал сегодня. Завтра снова сможешь.",
+                reply_markup=get_main_keyboard()  # С клавиатурой
             )
             return
         
@@ -443,7 +471,8 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 try:
                     await context.bot.send_message(
                         user_id,
-                        "💪\n\nКто-то справляется. Ты тоже можешь."
+                        "💪\n\nКто-то справляется. Ты тоже можешь.",
+                        reply_markup=get_main_keyboard()  # С клавиатурой!
                     )
                     sent_count += 1
                     await asyncio.sleep(0.1)  # Небольшая задержка между отправками
@@ -458,13 +487,15 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send_with_autodelete(
                 context.bot,
                 chat_id,
-                f"Сигнал отправлен ({sent_count} чел). Ты молодец."
+                f"Сигнал отправлен ({sent_count} чел). Ты молодец.",
+                reply_markup=get_main_keyboard()  # С клавиатурой
             )
         else:
             await send_with_autodelete(
                 context.bot,
                 chat_id,
-                "Пока ты один используешь бота. Но ты всё равно молодец."
+                "Пока ты один используешь бота. Но ты всё равно молодец.",
+                reply_markup=get_main_keyboard()  # С клавиатурой
             )
         
         logger.info(f"Пользователь {chat_id} отправил broadcast {sent_count} получателям")
@@ -486,7 +517,12 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg_text = "Прошёл 1 день"
         else:
             msg_text = f"Прошло {days} дней"
-        await send_with_autodelete(context.bot, chat_id, msg_text)  # 60 сек по умолчанию
+        await send_with_autodelete(
+            context.bot, 
+            chat_id, 
+            msg_text,
+            reply_markup=get_main_keyboard()  # С клавиатурой
+        )
     
     elif text == "⏸ Пауза":
         await stop(update, context)
@@ -526,5 +562,7 @@ def main():
     logger.info("Бот запущен")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
+if __name__ == '__main__':
+    main()
 if __name__ == '__main__':
     main()
