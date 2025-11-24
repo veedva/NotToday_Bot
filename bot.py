@@ -104,7 +104,7 @@ MILESTONES = {
 def get_main_keyboard():
     keyboard = [
         [KeyboardButton("👋 Ты тут?"), KeyboardButton("😔 Тяжело")],
-        [KeyboardButton("🔥 Держусь!"), KeyboardButton("📊 Дни")],
+        [KeyboardButton("🔥 Держись!"), KeyboardButton("📊 Дни")],
         [KeyboardButton("☕ Спасибо"), KeyboardButton("⏸ Пауза")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
@@ -335,7 +335,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for uid in get_all_active_users():
             if uid != chat_id:
                 try:
-                    await send_message(context.bot, uid, "💪\n\nДержитесь, братья!")
+                    await send_message(context.bot, uid, "💪\n\nДержитесь, ребята! Все получится.")
                     await asyncio.sleep(0.08)
                 except:
                     pass
