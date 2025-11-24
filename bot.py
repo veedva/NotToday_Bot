@@ -144,6 +144,24 @@ def reset_counter(user_id):
     data[str(user_id)]["start_date"] = datetime.now().isoformat()
     save_user_data(data)
 
+def can_broadcast_today(user_id):
+    data = load_user_data()
+    if str(user_id) not in data or "last_broadcast" not in data[str(user_id)]:
+        return True
+    last = datetime.fromisoformat(data[str(user_id)]["last_broadcast"])
+    return last.date() < datetime.now().date()
+
+def mark_broadcast_sent(user_id):
+    data = load_user_data()
+    if str(user_id) not in data:
+        data[str(user_id)] = {}
+    data[str(user_id)]["last_broadcast"] = datetime.now().isoformat()
+    save_user_data(data)
+
+def get_all_active_users():
+    data = load_user_data()
+    return [int(uid) for uid, ud in data.items() if ud.get("active", False)]
+
 # =====================================================
 # Очистка чата в полночь
 # =====================================================
@@ -155,7 +173,6 @@ async def midnight_clean_chat(context: ContextTypes.DEFAULT_TYPE):
     message_ids = data[str(chat_id)]["message_ids"]
     data[str(chat_id)]["message_ids"] = []
     save_user_data(data)
-
     deleted = 0
     for msg_id in message_ids:
         try:
@@ -228,7 +245,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
         save_for_deletion=False
     )
 
-    # Перезапуск задач
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}", f"midnight_{chat_id}"]:
         for job in context.job_queue.get_jobs_by_name(name):
             job.schedule_removal()
@@ -272,7 +288,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Всегда на месте.", "Тут, брат. Куда ж я денусь.", "На связи, как договаривались.", "Тут. Живой."
         ])
         await send_message(context.bot, chat_id, first)
-        await asyncio.sleep(random.uniform(2.5, 5.0))  # чуть больше задержка — как живой человек
+        await asyncio.sleep(random.uniform(1.5, 3.0))
         second = random.choice([
             "Держимся сегодня. Вместе.",
             "Сегодня мимо. Точно.",
@@ -305,6 +321,24 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
+    elif text == "🔥 Держусь!":
+        if not can_broadcast_today(chat_id):
+            await send_message(context.bot, chat_id, "Ты уже отправлял сегодня. Завтра снова сможешь.")
+            return
+
+        await send_message(context.bot, chat_id, "Сигнал отправлен. Ты молодец. 💪")
+
+        for uid in get_all_active_users():
+            if uid != chat_id:
+                try:
+                    await send_message(context.bot, uid, "💪\n\nКто-то держится. Ты тоже можешь.")
+                    await asyncio.sleep(0.08)
+                except:
+                    pass
+
+        mark_broadcast_sent(chat_id)
+        return
+
     elif text == "😔 Тяжело":
         context.user_data['awaiting_relapse_confirm'] = True
         await send_message(context.bot, chat_id, "Брат, ты сорвался?", reply_markup=get_relapse_keyboard())
@@ -320,7 +354,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await stop(update, context)
         return
 
-    # обработка Да/Нет после "Тяжело"
     if context.user_data.get('awaiting_relapse_confirm'):
         if text == "Да":
             reset_counter(chat_id)
