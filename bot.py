@@ -105,8 +105,7 @@ def get_main_keyboard():
     keyboard = [
         [KeyboardButton("👋 Ты тут?"), KeyboardButton("😔 Тяжело")],
         [KeyboardButton("🔥 Держусь!"), KeyboardButton("📊 Дни")],
-        [KeyboardButton("⏸ Пауза")],
-        [KeyboardButton("☕ Спасибо создателю")]  # ← твоя новая кнопка
+        [KeyboardButton("☕ Спасибо"), KeyboardButton("⏸ Пауза")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -266,14 +265,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await start(update, context)
         return
 
-    if text == "👋 Ты тут?":
+    elif text == "👋 Ты тут?":
         first = random.choice([
             "Тут, брат.", "А куда я денусь?", "Здесь. Как всегда.", "На связи.", "Тут, братан.",
             "Конечно тут.", "Тут. Дышу ровно.", "На посту.", "Как штык.", "Тут. Не переживай.",
             "Всегда на месте.", "Тут, брат. Куда ж я денусь.", "На связи, как договаривались.", "Тут. Живой."
         ])
         await send_message(context.bot, chat_id, first)
-        await asyncio.sleep(random.uniform(1.9, 3.3))
+        await asyncio.sleep(random.uniform(2.5, 5.0))  # чуть больше задержка — как живой человек
         second = random.choice([
             "Держимся сегодня. Вместе.",
             "Сегодня мимо. Точно.",
@@ -294,7 +293,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send_message(context.bot, chat_id, second)
         return
 
-    if text == "☕ Спасибо создателю":
+    elif text == "☕ Спасибо создателю":
         await send_message(
             context.bot, chat_id,
             "Спасибо, брат, что оценил. ❤️\n\n"
@@ -306,21 +305,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         return
 
-    if text == "😔 Тяжело":
+    elif text == "😔 Тяжело":
         context.user_data['awaiting_relapse_confirm'] = True
         await send_message(context.bot, chat_id, "Брат, ты сорвался?", reply_markup=get_relapse_keyboard())
         return
 
-    if text == "📊 Дни":
+    elif text == "📊 Дни":
         days = get_days_count(chat_id)
         msg = "Первый день. Начинаем." if days == 0 else "Прошёл 1 день" if days == 1 else f"Прошло {days} дней"
         await send_message(context.bot, chat_id, msg)
         return
 
-    if text == "⏸ Пауза":
+    elif text == "⏸ Пауза":
         await stop(update, context)
         return
 
+    # обработка Да/Нет после "Тяжело"
     if context.user_data.get('awaiting_relapse_confirm'):
         if text == "Да":
             reset_counter(chat_id)
