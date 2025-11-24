@@ -275,10 +275,11 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if str(chat_id) not in data:
         data[str(chat_id)] = {}
     
-    # Устанавливаем дату старта только при первом запуске
+    # Устанавливаем дату старта ТОЛЬКО если её нет (первый запуск)
     if "start_date" not in data[str(chat_id)]:
         data[str(chat_id)]["start_date"] = datetime.now().isoformat()
     
+    # При любом /start делаем активным
     data[str(chat_id)]["active"] = True
     save_user_data(data)
 
@@ -333,6 +334,10 @@ async def reset_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     chat_id = update.effective_chat.id
+
+    # Сбрасываем state если пользователь в режиме "Тяжело" но написал что-то другое
+    if context.user_data.get('awaiting_relapse_confirm') and text not in ["Да", "Нет"]:
+        context.user_data['awaiting_relapse_confirm'] = False
 
     if text == "▶ Начать":
         await start(update, context)
