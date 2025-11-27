@@ -9,15 +9,12 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import pytz
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
-    raise ValueError("Переменная окружения BOT_TOKEN не установлена!")
+    raise ValueError("BOT_TOKEN не установлен!")
 
 DATA_FILE = "user_data.json"
 LOCK_FILE = DATA_FILE + ".lock"
@@ -38,12 +35,12 @@ MORNING_MESSAGES = [
     "Привет, бро. Сегодня точно не надо.",
     "Доброе! Давай сегодня без этого.",
     "Утро. Ну что, сегодня мимо?",
-    "Привет. Сегодня я думаю обойдёмся.",
+    "Привет. Сегодня легко обойдёмся.",
     "Братан, доброе. Сегодня точно нет.",
     "Эй. Сегодня не в тему, согласен?",
     "Доброе утро. Давай только не сегодня.",
     "Привет. Может завтра, но сегодня нет.",
-    "Утро, брат. Сегодня спокойно обходимся без этого, а завтра посмотрим.",
+    "Утро, брат. Сегодня спокойно обходимся.",
     "Эй. Сегодня точно не стоит, да?"
 ]
 
@@ -105,7 +102,7 @@ def get_main_keyboard():
     keyboard = [
         [KeyboardButton("👋 Ты тут?"), KeyboardButton("😔 Тяжело")],
         [KeyboardButton("🔥 Держись!"), KeyboardButton("📊 Дни")],
-        [KeyboardButton("💲 Сказать спасибо"), KeyboardButton("⏸ Пауза")]
+        [KeyboardButton("☕ Спасибо"), KeyboardButton("⏸ Пауза")]
     ]
     return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
 
@@ -179,22 +176,25 @@ async def midnight_clean_chat(context: ContextTypes.DEFAULT_TYPE):
             await context.bot.delete_message(chat_id, msg_id)
             deleted += 1
             await asyncio.sleep(0.05)
-        except Exception:
+        except:
             pass
     logger.info(f"Очистил {deleted} сообщений у {chat_id}")
 
 # =====================================================
 # Отправка сообщений
 # =====================================================
-async def send_message(bot, chat_id, text, reply_markup=get_main_keyboard(), save_for_deletion=True):
-    msg = await bot.send_message(chat_id, text, reply_markup=reply_markup)
+async def send_message(bot, chat_id, text, reply_markup=None, save_for_deletion=True):
+    # Всегда показываем клавиатуру, если не передано явно другое
+    final_markup = reply_markup if reply_markup is not None else get_main_keyboard()
+    msg = await bot.send_message(chat_id, text, reply_markup=final_markup)
     if save_for_deletion:
         data = load_user_data()
-        if str(chat_id) not in data:
-            data[str(chat_id)] = {}
-        if "message_ids" not in data[str(chat_id)]:
-            data[str(chat_id)]["message_ids"] = []
-        data[str(chat_id)]["message_ids"].append(msg.message_id)
+        str_id = str(chat_id)
+        if str_id not in data:
+            data[str_id] = {}
+        if "message_ids" not in data[str_id]:
+            data[str_id]["message_ids"] = []
+        data[str_id]["message_ids"].append(msg.message_id)
         save_user_data(data)
     return msg
 
@@ -242,7 +242,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send_message(
         context.bot, chat_id,
         "Привет.\n\n"
-        "Я буду писать три раза в день, просто напомнить: не сегодня.\n\n"
+        "Я буду писать три раза в день, просто чтобы напомнить: сегодня — не надо.\n\n"
         "Если нажмёшь 🔥 Держись! — всем остальным придёт пуш. Просто чтобы знали: они не одни.\n\n"
         "Чат чистится каждую ночь. Всё строго между нами.\n\n"
         "Держись, брат.",
@@ -290,7 +290,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await asyncio.sleep(random.uniform(2.8, 5.5))
         first = random.choice([
             "Тут, брат.", "А куда я денусь?", "Здесь. Как всегда.", "На связи.", "Тут, братан.",
-            "Конечно тут.", "Тут. Дышу ровно.", "На посту.", "Ага.", "Тут. Не переживай.",
+            "Конечно тут.", "Тут. Дышу ровно.", "На посту.", "Как штык.", "Тут. Не переживай.",
             "Всегда на месте.", "Тут, брат. Куда ж я денусь.", "На связи, как договаривались.", "Тут. Живой."
         ])
         await send_message(context.bot, chat_id, first)
@@ -300,22 +300,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Сегодня мимо. Точно.",
             "Всё по плану. Держись.",
             "Держишь слово — уважаю.",
-            "Сегодня не хочу.",
+            "Сегодня наш день.",
             "Не сегодня, брат.",
             "Так держать.",
             "Ты в деле.",
             "Всё под контролем.",
             "Я рядом.",
-            "Терпим, хули.",
+            "Вместе идём.",
             "Ты справишься.",
             "Горжусь тобой.",
-            "Всё будет нормас.",
+            "Всё будет по-нашему.",
             "Ты молодец. Реально."
         ])
         await send_message(context.bot, chat_id, second)
         return
 
-    elif text == "💲 Сказать спасибо":
+    elif text == "☕ Спасибо":
         await send_message(
             context.bot, chat_id,
             "Спасибо, брат, что оценил. ❤️\n\n"
@@ -329,13 +329,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     elif text == "🔥 Держись!":
         if not can_broadcast_today(chat_id):
-            await send_message(context.bot, chat_id, "Ты уже отправлял сегодня. Завтра снова сможешь.")
+            await send_message(context.bot, chat_id, "Сегодня уже отправлял. Завтра снова сможешь.")
             return
-        await send_message(context.bot, chat_id, "Сигнал отправлен. Ты молодец. 💪")
+        await send_message(context.bot, chat_id, "Сигнал отправлен. Держись. 💪")
         for uid in get_all_active_users():
             if uid != chat_id:
                 try:
-                    await send_message(context.bot, uid, "💪\n\nДержитесь, ребята! Все получится.")
+                    await send_message(context.bot, uid, "💪")
                     await asyncio.sleep(0.08)
                 except:
                     pass
