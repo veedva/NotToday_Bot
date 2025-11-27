@@ -112,8 +112,32 @@ def get_main_keyboard():
 def get_start_keyboard():
     return ReplyKeyboardMarkup([[KeyboardButton("▶ Начать")]], resize_keyboard=True)
 
-def get_relapse_keyboard():
-    return ReplyKeyboardMarkup([[KeyboardButton("Да"), KeyboardButton("Нет")]], resize_keyboard=True)
+def get_heavy_keyboard():
+    keyboard = [
+        [KeyboardButton("Помочь себе"), KeyboardButton("Срыв")],
+        [KeyboardButton("Назад")]
+    ]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+def get_one_more_help_keyboard():
+    keyboard = [[KeyboardButton("Ещё один способ"), KeyboardButton("Назад")]]
+    return ReplyKeyboardMarkup(keyboard, resize_keyboard=True)
+
+# =====================================================
+# Техники помощи
+# =====================================================
+HELP_TECHNIQUES = [
+    "Сделай «дыхание спецназа»:\n\n• Вдох носом 4 сек\n• Задержка 4 сек\n• Выдох ртом 4 сек\n• Задержка 4 сек\n\nПовтори 6–8 раз — тяга уходит за минуту.",
+    "Сделай 20 приседаний или отжиманий прямо сейчас. Жёстко, но работает.",
+    "Подставь лицо/руки под ледяную воду на 30 секунд — мозг перезагрузится.",
+    "Выйди на балкон или открой окно настежь — 5 минут свежего воздуха.",
+    "Выпей медленно большой стакан ледяной воды.",
+    "Напиши в заметки 3 вещи, за которые ты сегодня благодарен.",
+    "Съешь что-то очень кислое или острое (лимон, перец, имбирь).",
+    "Быстрым шагом походи по квартире 2–3 минуты.",
+    "Сядь ровно, выпрями спину, закрой глаза — 60 секунд тишины.",
+    "Растяжка шеи и плеч: 10 кругов в каждую сторону медленно."
+]
 
 # =====================================================
 # Работа с данными
@@ -170,7 +194,7 @@ def get_all_active_users():
     return [int(uid) for uid, ud in data.items() if ud.get("active", False)]
 
 # =====================================================
-# Очистка чата ночью (только временные сообщения)
+# Очистка чата ночью
 # =====================================================
 async def midnight_clean_chat(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.chat_id
@@ -253,25 +277,23 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     data[user_str]["start_date"] = datetime.now().isoformat()
     data[user_str]["active"] = True
-    data[user_str]["awaiting_relapse"] = False
+    data[user_str]["state"] = "normal"
     save_user_data(data)
 
     await send_message(
         context.bot, chat_id,
         "Привет.\n\n"
         "Я буду писать три раза в день, просто чтобы напомнить: сегодня — не надо.\n\n"
-        "Если нажмёшь 🔥 Держитесь! — всем остальным придёт пуш. Просто чтобы знали: они не одни.\n\n"
+        "Если нажмёшь 💪 Держитесь! — всем остальным придёт пуш. Просто чтобы знали: они не одни.\n\n"
         "Чат чистится каждую ночь. Всё строго между нами.\n\n"
         "Держись.",
         save_for_deletion=False
     )
 
-    # Удаляем старые задачи
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}", f"midnight_{chat_id}"]:
         for job in context.job_queue.get_jobs_by_name(name):
             job.schedule_removal()
 
-    # Запускаем новые
     context.job_queue.run_daily(send_morning_message, time=time(9, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"morning_{chat_id}")
     context.job_queue.run_daily(send_evening_message, time=time(18, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"evening_{chat_id}")
     context.job_queue.run_daily(send_night_message, time=time(23, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"night_{chat_id}")
@@ -283,6 +305,7 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user_str = str(chat_id)
     if user_str in data:
         data[user_str]["active"] = False
+        data[user_str]["state"] = "normal"
         save_user_data(data)
 
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}", f"midnight_{chat_id}"]:
@@ -304,22 +327,41 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user_str = str(chat_id)
     data = load_user_data()
+    user_state = data.get(user_str, {}).get("state", "normal")
 
-    # Проверяем, ждём ли ответ на "Сорвался?"
-    if data.get(user_str, {}).get("awaiting_relapse", False):
-        if text == "Да":
+    # === Меню "Тяжело" ===
+    if user_state == "heavy_menu":
+        if text == "Помочь себе":
+            technique = random.choice(HELP_TECHNIQUES)
+            await send_message(context.bot, chat_id, technique, reply_markup=get_one_more_help_keyboard(), save_for_deletion=False)
+            data[user_str]["state"] = "help_mode"
+            save_user_data(data)
+            return
+        elif text == "Срыв":
             reset_counter(chat_id)
-            await send_message(context.bot, chat_id, "Ничего страшного. Начнём снова.", reply_markup=get_main_keyboard(), save_for_deletion=False)
-        elif text == "Нет":
-            await send_message(context.bot, chat_id, random.choice([
-                "Красава, держись.", "Молодец.", "Уважаю.", "Ты справишься.", "Так держать, брат."
-            ]), reply_markup=get_main_keyboard(), save_for_deletion=False)
-        
-        data[user_str]["awaiting_relapse"] = False
-        save_user_data(data)
-        return
+            await send_message(context.bot, chat_id, "Ничего страшного.\nНачнём заново. Ты всё равно молодец, что честно сказал.", reply_markup=get_main_keyboard(), save_for_deletion=False)
+            data[user_str]["state"] = "normal"
+            save_user_data(data)
+            return
+        elif text == "Назад":
+            await send_message(context.bot, chat_id, "Держись.", reply_markup=get_main_keyboard(), save_for_deletion=False)
+            data[user_str]["state"] = "normal"
+            save_user_data(data)
+            return
 
-    # Основные кнопки
+    # === Режим "Ещё один способ" ===
+    if user_state == "help_mode":
+        if text == "Ещё один способ":
+            technique = random.choice(HELP_TECHNIQUES)
+            await send_message(context.bot, chat_id, technique, reply_markup=get_one_more_help_keyboard(), save_for_deletion=False)
+            return
+        elif text == "Назад":
+            await send_message(context.bot, chat_id, "Держись там.", reply_markup=get_main_keyboard(), save_for_deletion=False)
+            data[user_str]["state"] = "normal"
+            save_user_data(data)
+            return
+
+    # === Основное меню ===
     if text == "▶ Начать":
         await start(update, context)
         return
@@ -327,63 +369,44 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if text == "👋 Ты тут?":
         await asyncio.sleep(random.uniform(2.8, 5.5))
         await send_message(context.bot, chat_id, random.choice([
-            "Тут.", "На связи.", "А куда я денусь?", "Здесь.", "Тут, как всегда.",
-            "Конечно тут.", "Тут. Дышу.", "На посту.", "Как штык.", "Тут. Не переживай."
+            "Тут.", "Да.", "А куда я денусь?", "Здесь.", "Тут, как всегда."
         ]))
         await asyncio.sleep(random.uniform(2.0, 4.5))
         await send_message(context.bot, chat_id, random.choice([
-            "Держимся сегодня.", "Сегодня мимо.", "Всё по плану.", "Не сегодня.",
-            "Ты справишься.", "Я рядом.", "Держись.", "Так держать.", "Ты в деле."
+            "Держимся сегодня.", "Сегодня не будем.", "Всё по плану.", "Не сегодня.", "Ты справишься."
         ]))
         return
 
     if text == "❤️ Спасибо":
         await send_message(context.bot, chat_id,
             "Спасибо, брат, что оценил. ❤️\n\n"
-            "Если хочешь поддержать (на Золофт, кофе или просто так):\n"
+            "Если хочешь поддержать (на кофе, Золофт или просто так):\n"
             "Сбер: 2202 2084 3481 5313\n\n"
-            "Главное — держись.\n"
-            "Мы справимся.",
+            "Главное — держись. Мы справимся.",
             save_for_deletion=False
         )
         return
 
     if text == "💪 Держитесь!":
         if not can_broadcast_today(chat_id):
-            await send_message(context.bot, chat_id, "Сегодня уже отправлял. Завтра снова сможешь.")
+            await send_message(context.bot, chat_id, "Сегодня ты уже отправлял. Завтра снова сможешь.")
             return
-
         await send_message(context.bot, chat_id, "Спасибо, ты тоже держись!")
-        emoji = random.choice(["💪", "🫶", "🤝", "✊", "🔥"])
+        emoji = random.choice(["💪", "🫶", "🤝", "✊", "❤️"])
         for uid in get_all_active_users():
             if uid != chat_id:
                 try:
                     await send_message(context.bot, uid, emoji)
                     await asyncio.sleep(0.08)
                 except Exception as e:
-                    logger.error(f"Не удалось отправить уведомление {uid}: {e}")
+                    logger.error(f"Не удалось отправить {uid}: {e}")
         mark_broadcast_sent(chat_id)
         return
 
     if text == "😔 Тяжело":
-        techniques = [
-            "Сделай «дыхание спецназа»:\n\n• Вдох носом 4 секунды\n• Задержка 4 секунды\n• Выдох ртом 4 секунды\n• Задержка после выдоха 4 секунды\n\nПовтори 6–8 раз. Тяга уйдёт.",
-            "Сделай 20 приседаний или отжиманий прямо сейчас.",
-            "Включи холодную воду и подставь руки/лицо на 30 секунд.",
-            "Выйди на балкон или открой окно — 5 минут свежего воздуха.",
-            "Выпей стакан холодной воды медленно.",
-            "Напиши в заметки 3 вещи, за которые ты сегодня благодарен.",
-            "Съешь что-то кислое или острое.",
-            "Походи по комнате 2 минуты быстрым шагом.",
-            "Сядь ровно, выпрями спину, закрой глаза — 60 секунд.",
-            "Сделай растяжку шеи и плеч — 10 кругов в каждую сторону."
-        ]
-        await send_message(context.bot, chat_id, random.choice(techniques))
-
-        data[user_str]["awaiting_relapse"] = True
+        data[user_str]["state"] = "heavy_menu"
         save_user_data(data)
-
-        await send_message(context.bot, chat_id, "Сорвался?", reply_markup=get_relapse_keyboard())
+        await send_message(context.bot, chat_id, "Что будем делать?", reply_markup=get_heavy_keyboard(), save_for_deletion=False)
         return
 
     if text == "📊 Дни":
@@ -402,15 +425,13 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         return
 
 # =====================================================
-# Запуск б796ота
+# Запуск бота
 # =====================================================
 def main():
     app = Application.builder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
-    logger.info("Бот запущен и работает")
+    logger.info("Бот запущен и готов")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
