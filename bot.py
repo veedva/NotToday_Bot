@@ -114,24 +114,24 @@ HOLD_RESPONSES = ["Отправлено. ✊", "Молодец. ✊", "Крас�
 
 def get_main_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
-        [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
-        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Пауза")]
+        [KeyboardButton("Держусь"), KeyboardButton("Тяжело")],
+        [KeyboardButton("Дни"), KeyboardButton("Ты тут?")],
+        [KeyboardButton("Спасибо"), KeyboardButton("Пауза")]
     ], resize_keyboard=True)
 
 def get_start_keyboard():
-    return ReplyKeyboardMarkup([[KeyboardButton("▶ Начать")]], resize_keyboard=True)
+    return ReplyKeyboardMarkup([[KeyboardButton("Начать")]], resize_keyboard=True)
 
 def get_heavy_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("💪 Помочь себе"), KeyboardButton("😅 Чуть не сорвался")],
-        [KeyboardButton("😞 Срыв"), KeyboardButton("↩️ Назад")]
+        [KeyboardButton("Помочь себе"), KeyboardButton("Чуть не сорвался")],
+        [KeyboardButton("Срыв"), KeyboardButton("Назад")]
     ], resize_keyboard=True)
 
 def get_help_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("🔄 Ещё способ")],
-        [KeyboardButton("↩️ Назад")]
+        [KeyboardButton("Ещё способ")],
+        [KeyboardButton("Назад")]
     ], resize_keyboard=True)
 
 def load_data():
@@ -287,11 +287,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await send(context.bot, chat_id,
         "Привет, брат.\n\n"
         "Я буду писать три раза в день — просто напомнить: сегодня не надо.\n\n"
-        "Когда тяжело — жми «✊ Держусь».\n"
+        "Когда тяжело — жми «Держусь».\n"
         "Все получат пуш. Просто узнают, что ты ещё здесь.\n"
         "Можешь жать до 5 раз в день, если совсем пиздец.\n\n"
-        "Держись, я рядом.",
-        save=False)
+        "Держись, я рядом.")
     await update_pin(context.bot, chat_id)
     schedule_jobs(chat_id, context.job_queue)
 
@@ -304,7 +303,7 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}", f"midnight_daily_{chat_id}"]:
         for job in context.job_queue.get_jobs_by_name(name):
             job.schedule_removal()
-    await send(context.bot, chat_id, "Уведомления приостановлены. Жми ▶ Начать, когда будешь готов.", get_start_keyboard())
+    await send(context.bot, chat_id, "Уведомления приостановлены. Жми Начать, когда будешь готов.", get_start_keyboard())
 
 async def handle_hold(chat_id, context):
     data, user = get_user(chat_id)
@@ -319,13 +318,13 @@ async def handle_hold(chat_id, context):
         await send(context.bot, chat_id, f"Погоди ещё {minutes_left} минут, брат.", lifetime=60)
         return
     if count >= 5:
-        await send(context.bot, chat_id, "Сегодня это уже 5 раз, брат, тормози. Завтра сможешь отправить еще. ✊", lifetime=60)
+        await send(context.bot, chat_id, "Сегодня это уже 5 раз, брат, тормози. Завтра сможешь отправить еще.", lifetime=60)
         return
-    await send(context.bot, chat_id, random.choice(HOLD_RESPONSES), save=False, lifetime=45)
+    await send(context.bot, chat_id, random.choice(HOLD_RESPONSES), lifetime=45)
     for uid in get_active_users():
         if uid != chat_id:
             try:
-                await context.bot.send_message(uid, "✊")
+                await context.bot.send_message(uid, "")
                 await asyncio.sleep(0.08)
             except:
                 pass
@@ -341,25 +340,25 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     state = user.get("state", "normal")
 
     if state == "heavy_menu":
-        if text == "💪 Помочь себе":
+        if text == "Помочь себе":
             tip = get_next_tip(user)
             await send(context.bot, chat_id, tip, get_help_keyboard(), lifetime=60)
             user["state"] = "help_mode"
             save_data(data)
             return
-        if text == "😞 Срыв":
+        if text == "Срыв":
             reset_streak(chat_id)
             await send(context.bot, chat_id, "Ничего страшного.\nНачнём заново. Ты молодец, что сказал честно.", get_main_keyboard(), lifetime=60)
             await update_pin(context.bot, chat_id)
             user["state"] = "normal"
             save_data(data)
             return
-        if text == "😅 Чуть не сорвался":
-            await send(context.bot, chat_id, "Красавчик. Это и есть победа. ✊", get_main_keyboard(), lifetime=60)
+        if text == "Чуть не сорвался":
+            await send(context.bot, chat_id, "Красавчик. Это и есть победа.", get_main_keyboard(), lifetime=60)
             user["state"] = "normal"
             save_data(data)
             return
-        if text == "↩️ Назад":
+        if text == "Назад":
             user["state"] = "normal"
             user["used_tips"] = []
             save_data(data)
@@ -367,44 +366,44 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             return
 
     if state == "help_mode":
-        if text == "🔄 Ещё способ":
+        if text == "Ещё способ":
             tip = get_next_tip(user)
             await send(context.bot, chat_id, tip, get_help_keyboard(), lifetime=60)
             save_data(data)
             return
-        if text == "↩️ Назад":
+        if text == "Назад":
             user["state"] = "normal"
             user["used_tips"] = []
             save_data(data)
             await send(context.bot, chat_id, "Держись там.", get_main_keyboard(), lifetime=60)
             return
 
-    if text == "▶ Начать":
+    if text == "Начать":
         await start(update, context)
-    elif text == "👋 Ты тут?":
-        await asyncio.sleep(random.uniform(1.5, 3.5))
+    elif text == "Ты тут?":
+        await asyncio.sleep(random.uniform(2.8, 5.5))
         await send(context.bot, chat_id, random.choice(TU_TUT_FIRST), lifetime=45)
         await asyncio.sleep(random.uniform(2.0, 4.5))
         await send(context.bot, chat_id, random.choice(TU_TUT_SECOND), lifetime=45)
-    elif text == "✊ Держусь":
+    elif text == "Держусь":
         await handle_hold(chat_id, context)
-    elif text == "😔 Тяжело":
+    elif text == "Тяжело":
         user["state"] = "heavy_menu"
         user["used_tips"] = []
         save_data(data)
         await send(context.bot, chat_id, "Что будем делать?", get_heavy_keyboard(), lifetime=60)
-    elif text == "📊 Дни":
+    elif text == "Дни":
         days = get_days(chat_id)
         best = user.get("best_streak", 0)
         msg = "Первый день." if days == 0 else "Прошёл 1 день." if days == 1 else f"Прошло {days} дней."
         if best > 0 and best != days:
             msg += f"\n\nТвой лучший стрик: {best} дней."
         await send(context.bot, chat_id, msg, lifetime=60)
-    elif text == "❤️ Спасибо":
+    elif text == "Спасибо":
         await send(context.bot, chat_id,
-            "Спасибо, брат. ❤️\n\nЕсли хочешь поддержать:\nСбер 2202 2084 3481 5313\n\nГлавное — держись.",
-            save=False, lifetime=60)
-    elif text == "⏸ Пауза":
+            "Спасибо, брат.\n\nЕсли хочешь поддержать:\nСбер 2202 2084 3481 5313\n\nГлавное — держись.",
+            lifetime=60)
+    elif text == "Пауза":
         await stop(update, context)
 
 async def error_handler(update: object, context: ContextTypes.DEFAULT_TYPE):
@@ -415,7 +414,7 @@ def main():
     app.add_handler(CommandHandler("start", start))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
     app.add_error_handler(error_handler)
-    logger.info("Кент на посту ✊")
+    logger.info("Кент на посту")
     app.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
