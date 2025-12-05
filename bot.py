@@ -198,7 +198,7 @@ def get_next_exercise(user_data):
     available = [i for i in range(len(HELP_TECHNIQUES)) if i not in used]
     if not available:
         used.clear()
-        available = list(range(len(HELP_TECHNIQUES))
+        available = list(range(len(HELP_TECHNIQUES)))  # ← вот тут была ошибка, теперь исправлено
     choice = random.choice(available)
     used.append(choice)
     return HELP_TECHNIQUES[choice]
@@ -219,7 +219,7 @@ async def send(bot, chat_id, text, keyboard=None, save=True):
     if save:
         data, user = get_user(chat_id)
         user["message_ids"].append(msg.message_id)
-        if len(user["message_ids"]) > 300:  # ограничиваем, чтобы не убивать бота
+        if len(user["message_ids"]) > 300:
             user["message_ids"] = user["message_ids"][-300:]
         save_data(data)
     return msg
@@ -230,7 +230,7 @@ async def midnight_clean(context):
     for msg_id in user.get("message_ids", []):
         try:
             await context.bot.delete_message(chat_id, msg_id)
-            await asyncio.sleep(0.1)  # чуть медленнее, чтобы не словить бан
+            await asyncio.sleep(0.1)
         except:
             pass
     user["message_ids"] = []
@@ -424,7 +424,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send(context.bot, chat_id, "Возвращаемся.", get_main_keyboard(), False)
         return
 
-    # Любое длинное сообщение — поддержка
     if len(text) > 8:
         await send(context.bot, chat_id,
             "Понимаю, брат. Тяжко.\n"
@@ -434,11 +433,9 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ======================= ЗАПУСК =======================
 def main():
     app = Application.builder().token(TOKEN).build()
-
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-
     print("Бот запущен — держись, брат ✊")
     app.run_polling()
 
