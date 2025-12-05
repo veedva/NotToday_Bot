@@ -185,11 +185,24 @@ def get_active_users():
 
 def get_next_exercise(user_data):
     used = user_data["used_tips"]
+    
+    # Если уже показал все 10 упражнений — начинаем новый круг
     if len(used) >= len(HELP_TECHNIQUES):
         used.clear()
+    
+    # Список ещё не показанных упражнений
     available = [i for i in range(len(HELP_TECHNIQUES)) if i not in used]
+    
+    # Защита от бага (на всякий случай)
+    if вдруг список пустой)
+    if not available:
+        used.clear()
+        available = list(range(len(HELP_TECHNIQUES)))
+    
+    # Выбираем случайное
     choice = random.choice(available)
     used.append(choice)
+    
     return HELP_TECHNIQUES[choice]
 
 def get_advice_for_day(days):
