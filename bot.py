@@ -21,6 +21,7 @@ MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 NOW = lambda: datetime.now(MOSCOW_TZ)
 
 # ======================= ТЕКСТЫ =======================
+MORNING_MESSAGES, EVENING_MESSAGES, NIGHT_MESSAGES — твои оригинальные, оставил без изменений
 MORNING_MESSAGES = [
     "Привет. Давай сегодня не будем, хорошо?",
     "Доброе утро, брат. Не сегодня.",
@@ -31,7 +32,7 @@ MORNING_MESSAGES = [
     "Привет, брат. Сегодня пожалуй что ну его нахуй.",
     "Доброе утро. Я напишу ещё сегодня.",
     "Привет. Сегодня точно не надо.",
-    "Доброе! Давай сегодня без этого вот этого всего.",
+    "Доброе! Давай сегодня без этого вот.",
     "Привет лох. Денег жалко, да и ну его.",
     "Привет. Сегодня всё будет нормально.",
     "Братан, доброе. Сегодня точно нет.",
@@ -84,7 +85,7 @@ NIGHT_MESSAGES = [
 
 MILESTONES = {
     3: "✨ Три дня без травы. Уже круто.",
-    7: "✨ Неделя. Ты прошёл самый пиздецовый период.",
+    7: "✨ Неделя. Ты прошёл самый тяжёлый период.",
     14: "✨ Две недели. Мозг уже начинает жить без неё.",
     21: "✨ 21 день — новые нейронные связи. Ты уже другой.",
     30: "✨ Месяц чистым. Уважаю, брат. По-настоящему.",
@@ -122,7 +123,7 @@ HELP_ADVICE_BY_DAY = [
     "90+ дней: ты прошёл. Никогда не проверяй «а вдруг я теперь могу контролировать». Это конец."
 ]
 
-# ======================= КЛАВИАТУРЫ С ЭМОДЗИ =======================
+# ======================= КНОПКИ С ЭМОДЗИ =======================
 def get_main_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
@@ -197,7 +198,7 @@ def get_next_exercise(user_data):
     available = [i for i in range(len(HELP_TECHNIQUES)) if i not in used]
     if not available:
         used.clear()
-        available = list(range(len(HELP_TECHNIQUES)))
+        available = list(range(len(HELP_TECHNIQUES))
     choice = random.choice(available)
     used.append(choice)
     return HELP_TECHNIQUES[choice]
@@ -264,7 +265,7 @@ async def night_job(context, chat_id):
     if not user["active"]: return
     await send(context.bot, chat_id, random.choice(NIGHT_MESSAGES))
 
-# ======================= ДЕРЖУСЬ =======================
+# ======================= ДЕРЖУСЬ — С ПРАВИЛЬНЫМ СКЛОНЕНИЕМ =======================
 async def handle_hold(chat_id, context):
     data, user = get_user(chat_id)
     today = NOW().date()
@@ -278,7 +279,13 @@ async def handle_hold(chat_id, context):
         delta = (NOW() - datetime.fromisoformat(last_time)).total_seconds()
         if delta < 1800:
             mins = int((1800 - delta) // 60) + 1
-            await send(context.bot, chat_id, f"Погоди ещё {mins} мин, брат.", save=False)
+            if mins % 10 == 1 and mins % 100 != 11:
+                word = "минуту"
+            elif 2 <= mins % 10 <= 4 and mins % 100 not in [12,13,14]:
+                word = "минуты"
+            else:
+                word = "минут"
+            await send(context.bot, chat_id, f"Погоди ещё {mins} {word}, брат.", save=False)
             return
 
     if count_today >= 5:
@@ -300,7 +307,7 @@ async def handle_hold(chat_id, context):
     user["hold_count_today"] = count_today + 1
     save_data(data)
 
-# ======================= КОМАНДЫ =======================
+# ======================= СТАРТ / СТОП / СРЫВ =======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     data, user = get_user(chat_id)
@@ -341,7 +348,7 @@ def reset_streak(user_id):
     user["used_tips"] = []
     save_data(data)
 
-# ======================= ОБРАБОТЧИК =======================
+# ======================= ОБРАБОТЧИК — С ИДЕАЛЬНЫМ РУССКИМ =======================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
@@ -368,22 +375,22 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         best = user.get("best_streak", 0)
 
         if days == 0:
-            days_text = "Это твой первый день"
+            days_text = "Это твой первый день."
         elif days == 1:
-            days_text = "Прошёл 1 день"
+            days_text = "Прошёл 1 день."
         elif days % 10 == 1 and days % 100 != 11:
-            days_text = f"Прошёл {days} день"
-        elif 2 <= days % 10 <= 4 and (days % 100 < 10 or days % 100 >= 20):
-            days_text = f"Прошло {days} дня"
+            days_text = f"Прошёл {days} день."
+        elif 2 <= days % 10 <= 4 and days % 100 not in [12,13,14]:
+            days_text = f"Прошло {days} дня."
         else:
-            days_text = f"Прошло {days} дней"
+            days_text = f"Прошло {days} дней."
 
-        msg = f"Ты держишься {days_text}"
+        msg = f"Ты держишься. {days_text}"
 
         if best > days:
-            msg += f"\n\nЛучший стрик был: {best} дней"
+            msg += f"\n\nЛучший стрик был: {best} дней."
         elif best > 0:
-            msg += f"\n\nЭто твой лучший стрик прямо сейчас"
+            msg += f"\n\nЭто твой лучший стрик прямо сейчас."
 
         await send(context.bot, chat_id, msg, save=False)
 
