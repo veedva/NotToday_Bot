@@ -122,7 +122,7 @@ HELP_ADVICE_BY_DAY = [
     "90+ дней: ты прошёл. Никогда не проверяй «а вдруг я теперь могу». Это конец."
 ]
 
-# ======================= КРАСИВЫЕ КНОПКИ С ЭМОДЗИ =======================
+# ======================= КНОПКИ =======================
 MAIN_KEYBOARD = ReplyKeyboardMarkup([
     [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
     [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
@@ -185,6 +185,7 @@ def get_days(user_id):
 def get_active_users():
     return [int(uid) for uid, u in load_data().items() if u.get("active")]
 
+# ======================= УПРАЖНЕНИЯ — ПО ПОРЯДКУ, С СОХРАНЕНИЕМ =======================
 def get_next_exercise(user_data):
     index = user_data.get("exercise_index", 0)
     exercise = HELP_TECHNIQUES[index]
