@@ -13,7 +13,7 @@ logging.basicConfig(format='%(asctime)s — %(levelname)s — %(message)s', leve
 
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
-    raise ValueError("BOT_TOKEN не установлен! Добавь его в переменные окружения.")
+    raise ValueError("BOT_TOKEN не установлен!")
 
 DATA_FILE = "user_data.json"
 LOCK_FILE = DATA_FILE + ".lock"
@@ -121,7 +121,7 @@ HELP_ADVICE_BY_DAY = [
     "90+ дней: ты прошёл самое сложное. Теперь главное — не расслабляться. Ты знаешь, на что способен."
 ]
 
-# ======================= КЛАВИАТУРЫ =======================
+# ======================= КЛАВИАТУРЫ С ЭМОДЗИ =======================
 def get_main_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
@@ -191,7 +191,7 @@ def get_days(user_id):
 def get_active_users():
     return [int(uid) for uid, u in load_data().items() if u.get("active", False)]
 
-# Упражнения без повторов
+# Упражнения — без повторов, 100% надёжно
 def get_next_exercise(user_data):
     used = user_data["used_tips"]
     total = len(HELP_TECHNIQUES)
@@ -228,7 +228,7 @@ async def send(bot, chat_id, text, keyboard=None, save=True):
         save_data(data)
     return msg
 
-async def midnight_clean(context):
+async def midnight_clean(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.chat_id
     data, user = get_user(chat_id)
     for msg_id in user.get("message_ids", []):
@@ -276,7 +276,7 @@ async def handle_hold(chat_id, context):
     count_today = user.get("hold_count_today", 0)
     last_time = user.get("last_hold_time")
 
-    if str(user.get("last_hold_date")) != str(today):
+    if user.get("last_hold_date") != str(today):
         count_today = 0
 
     if last_time:
@@ -311,7 +311,7 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data, user = get_user(chat_id)
     user["active"] = True
     user["start_date"] = NOW().isoformat()
-    user["used_tips"] = []
+    user["used_tips"] = []  # ← сброс упражнений
     user["hold_count_today"] = 0
     user["last_hold_date"] = None
     user["last_hold_time"] = None
@@ -345,7 +345,7 @@ def reset_streak(user_id):
     user["hold_count_today"] = 0
     user["last_hold_date"] = None
     user["last_hold_time"] = None
-    user["used_tips"] = []
+    user["used_tips"] = []  # ← сброс упражнений при срыве
     save_data(data)
 
 # ======================= ОБРАБОТЧИК =======================
@@ -403,30 +403,31 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await stop(update, context)
         return
 
-    # Эмодзи-кнопки
-    if text == "🔥 Упражнение":
+    # ЭМОДЗИ-КНОПКИ (и поддержка старых текстов)
+    if text in ["🔥 Упражнение", "Упражнения", "Упражнение"]:
         await send(context.bot, chat_id, get_next_exercise(user), get_exercise_keyboard(), False)
         return
 
-    if text == "🧠 Что происходит с телом":
+    if text in ["🧠 Что происходит с телом", "Что происходит с телом"]:
         await send(context.bot, chat_id, get_advice_for_day(days), get_advice_keyboard(), False)
         return
 
-    if text == "🔄 Другое упражнение":
+    if text in ["🔄 Другое упражнение", "Другое упражнение"]:
         await send(context.bot, chat_id, get_next_exercise(user), get_exercise_keyboard(), False)
         return
 
-    if text == "💔 Срыв":
+    if text in ["💔 Срыв", "Срыв"]:
         reset_streak(chat_id)
         await send(context.bot, chat_id,
             "Ничего страшного, брат.\nГлавное — ты сказал честно.\nЭто уже победа.\n"
             "Начинаем с чистого листа. Я с тобой.", get_main_keyboard(), False)
         return
 
-    if text == "↩ Назад":
+    if text in ["↩ Назад", "Назад"]:
         await send(context.bot, chat_id, "Возвращаемся.", get_main_keyboard(), False)
         return
 
+    # Любое длинное сообщение
     if len(text) > 8:
         await send(context.bot, chat_id,
             "Понимаю, брат. Тяжко.\n"
