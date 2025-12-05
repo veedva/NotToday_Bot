@@ -20,7 +20,6 @@ LOCK_FILE = DATA_FILE + ".lock"
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 NOW = lambda: datetime.now(MOSCOW_TZ)
 
-# ======================= ТЕКСТЫ =======================
 MORNING_MESSAGES = [
     "Привет. Давай сегодня не будем, хорошо?",
     "Доброе утро, брат. Не сегодня.",
@@ -185,7 +184,7 @@ def get_days(user_id):
 def get_active_users():
     return [int(uid) for uid, u in load_data().items() if u.get("active")]
 
-# ======================= УПРАЖНЕНИЯ — ПО ПОРЯДКУ, С СОХРАНЕНИЕМ =======================
+# ======================= УПРАЖНЕНИЯ — ПО ПОРЯДКУ =======================
 def get_next_exercise(user_data):
     index = user_data.get("exercise_index", 0)
     exercise = HELP_TECHNIQUES[index]
@@ -201,7 +200,7 @@ def get_advice_for_day(days):
     if days <= 90: return HELP_ADVICE_BY_DAY[5]
     return HELP_ADVICE_BY_DAY[6]
 
-# ======================= ОТПРАВКА =======================
+# ======================= ОТПРАВКА — С СОХРАНЕНИЕМ =======================
 async def send(bot, chat_id, text, keyboard=None, save=True):
     kb = keyboard or MAIN_KEYBOARD
     msg = await bot.send_message(chat_id, text, reply_markup=kb)
