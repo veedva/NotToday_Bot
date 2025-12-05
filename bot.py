@@ -20,6 +20,7 @@ LOCK_FILE = DATA_FILE + ".lock"
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 NOW = lambda: datetime.now(MOSCOW_TZ)
 
+# ======================= ТЕКСТЫ =======================
 MORNING_MESSAGES = [
     "Привет. Давай сегодня не будем, хорошо?",
     "Доброе утро, брат. Не сегодня.",
@@ -121,26 +122,28 @@ HELP_ADVICE_BY_DAY = [
     "90+ дней: ты прошёл. Никогда не проверяй «а вдруг я теперь могу». Это конец."
 ]
 
+# ======================= КНОПКИ =======================
 def get_keyboard(layout):
     return ReplyKeyboardMarkup(layout, resize_keyboard=True)
 
 MAIN_KEYBOARD = get_keyboard([
-    [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
-    [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
-    [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
+    [KeyboardButton("Держусь"), KeyboardButton("Тяжело")],
+    [KeyboardButton("Дни"), KeyboardButton("Ты тут?")],
+    [KeyboardButton("Спасибо"), KeyboardButton("Помолчи")]
 ])
 
-START_KEYBOARD = get_keyboard([[KeyboardButton("▶ Начать")]])
+START_KEYBOARD = get_keyboard([[KeyboardButton("Начать")]])
 
 HEAVY_KEYBOARD = get_keyboard([
-    [KeyboardButton("💪 Упражнения"), KeyboardButton("🧠 Что происходит с телом")],
-    [KeyboardButton("😞 Срыв"), KeyboardButton("↩ Назад")]
+    [KeyboardButton("Упражнения"), KeyboardButton("Что происходит с телом")],
+    [KeyboardButton("Срыв"), KeyboardButton("Назад")]
 ])
 
-EXERCISE_KEYBOARD = get_keyboard([[KeyboardButton("🔄 Другое упражнение")], [KeyboardButton("↩ Назад")]])
+EXERCISE_KEYBOARD = get_keyboard([[KeyboardButton("Другое упражнение")], [KeyboardButton("Назад")]])
 
-ADVICE_KEYBOARD = get_keyboard([[KeyboardButton("↩ Назад")]])
+ADVICE_KEYBOARD = get_keyboard([[KeyboardButton("Назад")]])
 
+# ======================= ДАННЫЕ =======================
 def load_data():
     with FileLock(LOCK_FILE):
         if os.path.exists(DATA_FILE):
@@ -197,6 +200,7 @@ def get_advice_for_day(days):
     if days <= 90: return HELP_ADVICE_BY_DAY[5]
     return HELP_ADVICE_BY_DAY[6]
 
+# ======================= ОТПРАВКА =======================
 async def send(bot, chat_id, text, keyboard=None, save=True):
     kb = keyboard or MAIN_KEYBOARD
     msg = await bot.send_message(chat_id, text, reply_markup=kb)
@@ -220,6 +224,7 @@ async def midnight_clean(context):
     user["message_ids"] = []
     save_data(data)
 
+# ======================= РАСПИСАНИЕ =======================
 def schedule_jobs(chat_id, job_queue):
     for prefix in ["m", "e", "n", "c"]:
         for job in job_queue.get_jobs_by_name(f"{prefix}_{chat_id}"):
@@ -227,7 +232,7 @@ def schedule_jobs(chat_id, job_queue):
     job_queue.run_daily(lambda ctx: morning_job(ctx, chat_id), time(9, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"m_{chat_id}")
     job_queue.run_daily(lambda ctx: evening_job(ctx, chat_id), time(18, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"e_{chat_id}")
     job_queue.run_daily(lambda ctx: night_job(ctx, chat_id), time(23, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"n_{chat_id}")
-    job_queue.run_daily(midnight_clean, time(0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"c_{chat_id}")
+    job_queue.run_daily(midnight_clean, time(0, 1, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"c_{chat_id}")
 
 async def morning_job(context, chat_id):
     _, user = get_user(chat_id)
@@ -248,6 +253,7 @@ async def night_job(context, chat_id):
     if not user.get("active"): return
     await send(context.bot, chat_id, random.choice(NIGHT_MESSAGES))
 
+# ======================= ДЕРЖУСЬ =======================
 async def handle_hold(chat_id, context):
     data, user = get_user(chat_id)
     today = NOW().date()
@@ -289,6 +295,7 @@ async def handle_hold(chat_id, context):
     user["hold_count_today"] = count_today + 1
     save_data(data)
 
+# ======================= СТАРТ / СТОП / СРЫВ =======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     data, user = get_user(chat_id)
@@ -329,6 +336,7 @@ def reset_streak(user_id):
     })
     save_data(data)
 
+# ======================= ОБРАБОТЧИК =======================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
@@ -420,6 +428,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send(context.bot, chat_id,
             "Понимаю, брат. Тяжко.\nЖми ✊ Держусь — всем разошлю.\nИли 😔 Тяжело — подберём приём прямо сейчас.", save=False)
 
+# ======================= ЗАПУСК =======================
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handler(CommandHandler("start", start))
