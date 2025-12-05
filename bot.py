@@ -124,32 +124,32 @@ HELP_ADVICE_BY_DAY = [
 # ======================= КЛАВИАТУРЫ =======================
 def get_main_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
-        [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
-        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Пауза")]
+        [KeyboardButton("✊ Держусь"), KeyboardButton("Тяжело")],
+        [KeyboardButton("Дни"), KeyboardButton("Ты тут?")],
+        [KeyboardButton("Спасибо"), KeyboardButton("Пауза")]
     ], resize_keyboard=True)
 
 def get_start_keyboard():
-    return ReplyKeyboardMarkup([[KeyboardButton("▶ Начать")]], resize_keyboard=True)
+    return ReplyKeyboardMarkup([[KeyboardButton("Начать")]], resize_keyboard=True)
 
 def get_heavy_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("💪 Упражнения"), KeyboardButton("📖 Что происходит с телом")],
-        [KeyboardButton("😞 Срыв"), KeyboardButton("↩ Назад")]
+        [KeyboardButton("Упражнения"), KeyboardButton("Что происходит с телом")],
+        [KeyboardButton("Срыв"), KeyboardButton("Назад")]
     ], resize_keyboard=True)
 
 def get_exercise_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("🔄 Другое упражнение")],
-        [KeyboardButton("↩ Назад")]
+        [KeyboardButton("Другое упражнение")],
+        [KeyboardButton("Назад")]
     ], resize_keyboard=True)
 
 def get_advice_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("↩ Назад")]
-    ], resize_keyboard=True)  # советы не повторяем — они по дням
+        [KeyboardButton("Назад")]
+    ], resize_keyboard=True)
 
-# ======================= РАБОТА С ФАЙЛАМИ =======================
+# ======================= ДАННЫЕ =======================
 def load_data():
     with FileLock(LOCK_FILE):
         if os.path.exists(DATA_FILE):
@@ -236,10 +236,9 @@ async def midnight_clean(context):
 
 # ======================= РАСПИСАНИЕ =======================
 def schedule_jobs(chat_id, job_queue):
-    for prefix in ["m", "e", "n", "c"]:
-        for job in job_queue.get_jobs_by_name(f"{prefix}_{chat_id}"):
+    for p in ["m", "e", "n", "c"]:
+        for job in job_queue.get_jobs_by_name(f"{p}_{chat_id}"):
             job.schedule_removal()
-
     job_queue.run_daily(lambda ctx: morning_job(ctx, chat_id), time(9, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"m_{chat_id}")
     job_queue.run_daily(lambda ctx: evening_job(ctx, chat_id), time(18, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"e_{chat_id}")
     job_queue.run_daily(lambda ctx: night_job(ctx, chat_id), time(23, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"n_{chat_id}")
@@ -282,7 +281,7 @@ async def handle_hold(chat_id, context):
             return
 
     if count_today >= 5:
-        await send(context.bot, chat_id, "Сегодня уже 5 раз, брат ✊\nЗавтра снова сможешь.", save=False)
+        await send(context.bot, chat_id, "Сегодня уже 5 раз, брат\nЗавтра снова сможешь.", save=False)
         return
 
     await send(context.bot, chat_id, random.choice(HOLD_RESPONSES), save=False)
@@ -300,7 +299,7 @@ async def handle_hold(chat_id, context):
     user["hold_count_today"] = count_today + 1
     save_data(data)
 
-# ======================= СТАРТ / СТОП / СРЫВ =======================
+# ======================= КОМАНДЫ =======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     data, user = get_user(chat_id)
@@ -308,11 +307,10 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     user["start_date"] = NOW().isoformat()
     user["used_tips"] = []
     save_data(data)
-
     await send(context.bot, chat_id,
         "Привет, брат.\n\n"
-        "Я буду писать тебе писать три раза в день — просто чтобы напомнить: сегодня не надо.\n\n"
-        "Когда тяжело — жми ✊ Держусь\nВсе получат пуш и узнают, что ты ещё здесь.\n\n"
+        "Я буду писать три раза в день — просто напомню: сегодня не надо.\n\n"
+        "Когда тяжело — жми ✊ Держусь\nВсе получат пуш и узнают, что ты ещё здесь.\n"
         "Можешь жать до 5 раз в сутки.\n\n"
         "Держись. Я рядом.",
         save=False)
@@ -323,8 +321,8 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     data, user = get_user(chat_id)
     user["active"] = False
     save_data(data)
-    for prefix in ["m", "e", "n", "c"]:
-        for job in context.job_queue.get_jobs_by_name(f"{prefix}_{chat_id}"):
+    for p in ["m", "e", "n", "c"]:
+        for job in context.job_queue.get_jobs_by_name(f"{p}_{chat_id}"):
             job.schedule_removal()
     await send(context.bot, chat_id, "Уведомления остановлены.\nКогда будешь готов — жми ▶ Начать", get_start_keyboard(), False)
 
@@ -340,7 +338,7 @@ def reset_streak(user_id):
     user["used_tips"] = []
     save_data(data)
 
-# ======================= ОБРАБОТКА =======================
+# ======================= ОБРАБОТЧИК =======================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
@@ -359,11 +357,11 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await handle_hold(chat_id, context)
         return
 
-    if text == "😔 Тяжело":
+    if text == "Тяжело":
         await send(context.bot, chat_id, "Держись, брат. Что будем делать?", get_heavy_keyboard(), False)
         return
 
-    if text == "📊 Дни":
+    if text == "Дни":
         best = user.get("best_streak", 0)
         msg = f"Ты держишься {days} дней"
         if best > days:
@@ -375,14 +373,14 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             await send(context.bot, chat_id, MILESTONES[days], get_main_keyboard(), False)
         return
 
-    if text == "👋 Ты тут?":
+    if text == "Ты тут?":
         await asyncio.sleep(random.randint(2,6))
         await send(context.bot, chat_id, random.choice(TU_TUT_FIRST), get_main_keyboard(), False)
         await asyncio.sleep(random.randint(2,5))
         await send(context.bot, chat_id, random.choice(TU_TUT_SECOND), get_main_keyboard(), False)
         return
 
-    if text == "❤️ Спасибо":
+    if text == "Спасибо":
         await send(context.bot, chat_id,
             "Спасибо тебе, брат, что ты есть. ❤️\n\n"
             "Если хочешь поддержать того, кто это всё написал:\n"
@@ -391,30 +389,30 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Главное — держись.", get_main_keyboard(), False)
         return
 
-    if text == "⏸ Пауза":
+    if text == "Пауза":
         await stop(update, context)
         return
 
-    if text == "💪 Упражнения":
+    if text == "Упражнения":
         await send(context.bot, chat_id, get_next_exercise(user), get_exercise_keyboard(), False)
         return
 
-    if text == "📖 Что происходит с телом":
+    if text == "Что происходит с телом":
         await send(context.bot, chat_id, get_advice_for_day(days), get_advice_keyboard(), False)
         return
 
-    if text == "🔄 Другое упражнение":
+    if text == "Другое упражнение":
         await send(context.bot, chat_id, get_next_exercise(user), get_exercise_keyboard(), False)
         return
 
-    if text == "😞 Срыв":
+    if text == "Срыв":
         reset_streak(chat_id)
         await send(context.bot, chat_id,
             "Ничего страшного, брат.\nГлавное — ты сказал честно.\nЭто уже победа.\n"
             "Начинаем с чистого листа. Я с тобой.", get_main_keyboard(), False)
         return
 
-    if text in ["↩ Назад", "↩ Назад"]:
+    if text in ["Назад", "Назад"]:
         await send(context.bot, chat_id, "Возвращаемся в меню", get_main_keyboard(), False)
         return
 
@@ -422,7 +420,7 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await send(context.bot, chat_id,
             "Понимаю, брат. Тяжко.\n"
             "Жми ✊ Держусь — всем разошлю.\n"
-            "Или 😔 Тяжело — подберём приём прямо сейчас.",
+            "Или Тяжело — подберём приём прямо сейчас.",
             get_main_keyboard(), False)
 
 # ======================= ЗАПУСК =======================
