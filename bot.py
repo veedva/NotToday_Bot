@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
-    raise ValueError("BOT_TOKEN не установлен!")
+    raise ValueError("BOT_TOKEN не установлен! Поставь его в переменные окружения.")
 
 DATA_FILE = "user_data.json"
 LOCK_FILE = DATA_FILE + ".lock"
@@ -30,7 +30,7 @@ MORNING_MESSAGES = [
     "Привет. Сегодня обойдёмся и так пиздец.",
     "Утро. Давай только не сегодня.",
     "Привет, брат. Сегодня пожалуй что ну его нахуй, знаешь.",
-    "Доброе утро. Я напишу ёщё сегодня.",
+    "Доброе утро. Я напишу ещё сегодня.",
     "Привет. Сегодня точно не надо.",
     "Доброе! Давай сегодня без этого вот.",
     "Привет лох. Денег жалко, да и ну его.",
@@ -79,72 +79,71 @@ NIGHT_MESSAGES = [
     "Ещё один день прошёл. До завтра.",
     "Держались сегодня. Молодцы.",
     "День зачётный. Спокойной.",
-    "Справились. До завтра.",
+    "Справлись. До завтра.",
     "Сегодня получилось. Отдыхай."
 ]
 
 MILESTONES = {
-    3: "Три дня уже. Неплохо идём.",
-    7: "Неделя прошла. Продолжаем.",
-    14: "Две недели! Хорошо идёт.",
-    30: "Месяц. Серьёзно, уважаю.",
-    60: "Два месяца. Сильный результат.",
-    90: "Три месяца! Ты реально крутой.",
-    180: "Полгода. Это впечатляет.",
-    365: "Год. Легенда."
+    3: "Три дня уже. Неплохо идём, брат.",
+    7: "Неделя. Понимаешь, да? Это уже серьёзно.",
+    14: "Две недели. Ты реально держишься.",
+    30: "Месяц без этой хуйни. Уважаю по-настоящему.",
+    60: "Два месяца. Это уже другой уровень.",
+    90: "Три месяца. Ты — машина.",
+    180: "Полгода. Легенда.",
+    365: "Год чистым. Ты сделал это, брат."
 }
 
 TU_TUT_FIRST = ["Тут.", "Привет.", "А куда я денусь?", "Здесь.", "Тут, как всегда.", "Да, да, привет.", "Че как?", "Ага.", "Здраствуй.", "Тут. Не переживай."]
-TU_TUT_SECOND = ["Держимся.", "Я с тобой.", "Всё по плану?", "Не хочу сегодня.", "Сегодня не буду.", "Я рядом.", "Держись.", "Все будет нормально.", "Я в деле.", "Всё под контролем."]
+TU_TUT_SECOND = ["Держимся.", "Я с тобой.", "Всё по плану?", "Не хочу сегодня.", "Сегодня не буду.", "Я рядом.", "Держись.", "Всё будет нормально.", "Я в деле.", "Всё под контролем."]
 
 HOLD_RESPONSES = ["Отправлено. ✊", "Молодец. ✊", "Ты крутой. ✊", "Так держать. ✊"]
 
-# =================== Упражнения и Советы =====================
 HELP_TECHNIQUES = [
-    "Дыши по кругу: вдох 4 сек → задержка 4 сек → выдох 4 сек → пауза 4 сек. Повтори 6–8 раз. Мозг переключается и тяга уходит.",
-    "20–30 отжиманий или приседаний до жжения. Пока мышцы горят, голова не думает о херне.",
-    "Ледяная вода на лицо и шею 20–30 сек. Шок мозга, тяга уходит.",
-    "Выйди на улицу или открой окно. 3–5 мин свежего воздуха. Даже -20°C, всё равно выйди.",
-    "Выпей холодной воды медленно маленькими глотками. Пока пьёшь — тяга слабеет.",
-    "Запиши 3 вещи, за которые благодарен сегодня. Мозг переключается на позитив.",
-    "Съешь что-то кислое или острое: лимон, горчица, имбирь, чили. Жжёт рот — голова забывает про тягу.",
-    "Пройдись быстрым шагом 3–4 минуты под музыку. Движение переключает мозг.",
-    "Сядь, выпрями спину, закрой глаза и просто дыши 1 мин. Перезагрузка.",
-    "Круговые движения плечами и наклоны головы. Расслабление мышц и снижение тревоги."
+    "Дыши по кругу: вдох 4 сек → задержка 4 сек → выдох 4 сек → пауза 4 сек. Повтори 6–8 раз.",
+    "20–30 отжиманий или приседаний до жжения.",
+    "Ледяная вода на лицо и шею 20–30 сек.",
+    "Выйди на улицу или открой окно. 3–5 мин свежего воздуха.",
+    "Выпей холодной воды медленно маленькими глотками.",
+    "Запиши 3 вещи, за которые благодарен сегодня.",
+    "Съешь что-то кислое или острое: лимон, горчица, имбирь, чили.",
+    "Пройдись быстрым шагом 3–4 минуты под музыку.",
+    "Сядь, выпрями спину, закрой глаза и просто дыши 1 минуту.",
+    "Круговые движения плечами и наклоны головы."
 ]
 
 HELP_ADVICE = [
-    "Наркомания — это зависимость от вещества, она меняет мозг. Соси бибу теперь.",
-    "Дни 1–3: сильная ломка, беспокойство, раздражение. Ограничь контакты с триггерами.",
-    "Дни 4–7: тяга остаётся, появляются первые победы. Поддержка важна.",
-    "Дни 8–14: настроение стабилизируется, тяга уменьшается. Продолжай упражнения.",
-    "Дни 15–30: тело и мозг начинают восстанавливаться. Следи за сном и питанием.",
-    "Дни 31–60: устойчивое улучшение. Прогресс виден, фиксируй достижения.",
-    "Дни 61–90: привычки укреплены. Можно добавить новые цели.",
-    "Дальше: организм и мозг адаптируются. Продолжай практики и поддерживай себя."
+    "Наркомания — это зависимость от вещества, она меняет мозг. Теперь держимся.",
+    "Дни 1–3: сильная ломка, раздражение. Ограничь триггеры.",
+    "Дни 4–7: тяга остаётся, но уже есть первые победы.",
+    "Дни 8–14: настроение выравнивается, тяга слабеет.",
+    "Дни 15–30: тело начинает восстанавливаться. Спи и ешь нормально.",
+    "Дни 31–60: прогресс виден всем. Фиксируй достижения.",
+    "Дни 61–90: новые привычки закрепляются.",
+    "Дальше — ты уже другой человек. Продолжай."
 ]
 
 # ======================= Клавиатуры =========================
 def get_main_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
-        [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
-        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Пауза")]
+        [KeyboardButton("✊ Держусь"), KeyboardButton("Тяжело")],
+        [KeyboardButton("Дни"), KeyboardButton("Ты тут?")],
+        [KeyboardButton("Спасибо"), KeyboardButton("Пауза")]
     ], resize_keyboard=True)
 
 def get_start_keyboard():
-    return ReplyKeyboardMarkup([[KeyboardButton("▶ Начать")]], resize_keyboard=True)
+    return ReplyKeyboardMarkup([[KeyboardButton("Начать")]], resize_keyboard=True)
 
 def get_heavy_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("💪 Упражнения"), KeyboardButton("📖 Советы")],
-        [KeyboardButton("😞 Срыв"), KeyboardButton("↩️ Назад")]
+        [KeyboardButton("Упражнения"), KeyboardButton("Советы")],
+        [KeyboardButton("Срыв"), KeyboardButton("Назад")]
     ], resize_keyboard=True)
 
 def get_help_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("🔄 Ещё способ")],
-        [KeyboardButton("↩️ Назад")]
+        [KeyboardButton("Ещё способ")],
+        [KeyboardButton("Назад в меню")]
     ], resize_keyboard=True)
 
 # ======================= Работа с данными =========================
@@ -168,124 +167,150 @@ def get_user(user_id):
     uid = str(user_id)
     if uid not in data:
         data[uid] = {
-            "start_date": NOW().isoformat(),
+            "start_date": None,
             "active": False,
-            "state": "normal",
             "best_streak": 0,
-            "message_ids": [],
-            "hold_count": 0,
-            "hold_date": None,
-            "hold_time": None,
+            "hold_count_today": 0,
+            "last_hold_date": None,
+            "last_hold_time": None,
             "used_tips": [],
-            "used_advice": []
+            "used_advice": [],
+            "message_ids": []
         }
         save_data(data)
     return data, data[uid]
 
 def get_days(user_id):
     _, user = get_user(user_id)
-    if user.get("start_date"):
-        start = datetime.fromisoformat(user["start_date"])
-        return (NOW() - start).days
-    return 0
-
-def reset_streak(user_id):
-    data, user = get_user(user_id)
-    current = get_days(user_id)
-    if current > user.get("best_streak", 0):
-        user["best_streak"] = current
-    user["start_date"] = NOW().isoformat()
-    user["hold_count"] = 0
-    user["hold_date"] = None
-    user["hold_time"] = None
-    save_data(data)
+    if not user["start_date"]:
+        return 0
+    start = datetime.fromisoformat(user["start_date"]).date()
+    return (NOW().date() - start).days
 
 def get_active_users():
-    return [int(uid) for uid, u in load_data().items() if u.get("active")]
+    data = load_data()
+    return [int(uid) for uid, u in data.items() if u.get("active")]
 
-def get_next_tip(user_data: dict) -> str:
-    used = user_data.setdefault("used_tips", [])
-    if len(used) >= len(HELP_TECHNIQUES):
-        used.clear()
+def get_next_tip(user_data):
+    used = user_data["used_tips"]
     available = [i for i in range(len(HELP_TECHNIQUES)) if i not in used]
+    if not available:
+        used.clear()
+        available = list(range(len(HELP_TECHNIQUES)))
     choice = random.choice(available)
     used.append(choice)
     return HELP_TECHNIQUES[choice]
 
-def get_next_advice(user_data: dict) -> str:
-    used = user_data.setdefault("used_advice", [])
-    if len(used) >= len(HELP_ADVICE):
-        used.clear()
+def get_next_advice(user_data):
+    used = user_data["used_advice"]
     available = [i for i in range(len(HELP_ADVICE)) if i not in used]
+    if not available:
+        used.clear()
+        available = list(range(len(HELP_ADVICE)))
     choice = random.choice(available)
     used.append(choice)
     return HELP_ADVICE[choice]
 
-# ======================= Отправка сообщений =========================
+# ======================= Отправка и чистка =========================
 async def send(bot, chat_id, text, keyboard=None, save=True):
     kb = keyboard or get_main_keyboard()
     msg = await bot.send_message(chat_id, text, reply_markup=kb)
     if save:
-        data, _ = get_user(chat_id)
-        data[str(chat_id)].setdefault("message_ids", []).append(msg.message_id)
-        if len(data[str(chat_id)]["message_ids"]) > 500:
-            data[str(chat_id)]["message_ids"] = data[str(chat_id)]["message_ids"][-500:]
-        save_data(data)
+        _, user = get_user(chat_id)
+        user["message_ids"].append(msg.message_id)
+        if len(user["message_ids"]) > 500:
+            user["message_ids"] = user["message_ids"][-500:]
+        save_data(load_data())
     return msg
-
-# ======================= Задачи =========================
-async def morning_job(context):
-    chat_id = context.job.chat_id
-    _, user = get_user(chat_id)
-    if not user.get("active"): return
-    days = get_days(chat_id)
-    text = MILESTONES.get(days, random.choice(MORNING_MESSAGES))
-    await send(context.bot, chat_id, text)
-
-async def evening_job(context):
-    chat_id = context.job.chat_id
-    _, user = get_user(chat_id)
-    if not user.get("active"): return
-    await send(context.bot, chat_id, random.choice(EVENING_MESSAGES))
-
-async def night_job(context):
-    chat_id = context.job.chat_id
-    _, user = get_user(chat_id)
-    if not user.get("active"): return
-    await send(context.bot, chat_id, random.choice(NIGHT_MESSAGES))
 
 async def midnight_clean(context):
     chat_id = context.job.chat_id
-    data, user = get_user(chat_id)
-    ids = user.get("message_ids", [])
-    user["message_ids"] = []
-    save_data(data)
-    for msg_id in ids:
+    _, user = get_user(chat_id)
+    for msg_id in user.get("message_ids", []):
         try:
             await context.bot.delete_message(chat_id, msg_id)
             await asyncio.sleep(0.05)
         except:
             pass
+    user["message_ids"] = []
 
+# ======================= Джобы =========================
 def schedule_jobs(chat_id, job_queue):
-    for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}", f"midnight_{chat_id}"]:
+    names = [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}", f"midnight_{chat_id}"]
+    for name in names:
         for job in job_queue.get_jobs_by_name(name):
             job.schedule_removal()
-    job_queue.run_daily(morning_job, time(9, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"morning_{chat_id}")
-    job_queue.run_daily(evening_job, time(18, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"evening_{chat_id}")
-    job_queue.run_daily(night_job, time(23, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"night_{chat_id}")
+
+    job_queue.run_daily(lambda c: morning_job(c, chat_id), time(9, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"morning_{chat_id}")
+    job_queue.run_daily(lambda c: evening_job(c, chat_id), time(18, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"evening_{chat_id}")
+    job_queue.run_daily(lambda c: night_job(c, chat_id), time(23, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"night_{chat_id}")
     job_queue.run_daily(midnight_clean, time(0, 1, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"midnight_{chat_id}")
 
-# ======================= Команды =========================
+async def morning_job(context, chat_id):
+    _, user = get_user(chat_id)
+    if not user["active"]: return
+    days = get_days(chat_id)
+    text = MILESTONES.get(days, random.choice(MORNING_MESSAGES))
+    await send(context.bot, chat_id, text)
+    if days in MILESTONES:
+        await send(context.bot, chat_id, MILESTONES[days])
+
+async def evening_job(context, chat_id):
+    _, user = get_user(chat_id)
+    if not user["active"]: return
+    await send(context.bot, chat_id, random.choice(EVENING_MESSAGES))
+
+async def night_job(context, chat_id):
+    _, user = get_user(chat_id)
+    if not user["active"]: return
+    await send(context.bot, chat_id, random.choice(NIGHT_MESSAGES))
+
+# ======================= Держусь =========================
+async def handle_hold(chat_id, context):
+    data, user = get_user(chat_id)
+    today = NOW().date()
+    count_today = user.get("hold_count_today", 0)
+    last_time = user.get("last_hold_time")
+
+    if user.get("last_hold_date") != str(today):
+        count_today = 0
+
+    if last_time:
+        delta = (NOW() - datetime.fromisoformat(last_time)).total_seconds()
+        if delta < 1800:  # 30 минут
+            mins = int((1800 - delta) // 60) + 1
+            await send(context.bot, chat_id, f"Погоди ещё {mins} мин, брат.", save=False)
+            return
+
+    if count_today >= 5:
+        await send(context.bot, chat_id, "Сегодня уже 5 раз, брат. Хватит на сегодня ✊\nЗавтра снова сможешь.", save=False)
+        return
+
+    await send(context.bot, chat_id, random.choice(HOLD_RESPONSES), save=False)
+
+    for uid in get_active_users():
+        if uid != chat_id:
+            try:
+                await context.bot.send_message(uid, "✊")
+                await asyncio.sleep(0.15)
+            except:
+                pass
+
+    user["last_hold_time"] = NOW().isoformat()
+    user["last_hold_date"] = str(today)
+    user["hold_count_today"] = count_today + 1
+    save_data(data)
+
+# ======================= Команды и обработка =========================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     data, user = get_user(chat_id)
     user["active"] = True
-    user["state"] = "normal"
+    user["start_date"] = NOW().isoformat()
     save_data(data)
     await send(context.bot, chat_id,
         "Привет, брат.\n\n"
-        "Я буду писать три раза в день — просто напомнить: сегодня не надо.\n\n"
+        "Я буду писать три раза в день — просто напомнить: сегодня не надо.\n"
         "Когда тяжело — жми «✊ Держусь».\n"
         "Все получат пуш. Просто узнают, что ты ещё здесь.\n"
         "Можешь жать до 5 раз в день, если совсем пиздец.\n\n"
@@ -297,127 +322,123 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     data, user = get_user(chat_id)
     user["active"] = False
-    user["state"] = "normal"
     save_data(data)
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}", f"midnight_{chat_id}"]:
         for job in context.job_queue.get_jobs_by_name(name):
             job.schedule_removal()
-    await send(context.bot, chat_id, "Уведомления приостановлены. Жми ▶ Начать, когда будешь готов.", get_start_keyboard(), False)
+    await send(context.bot, chat_id, "Уведомления приостановлены.\nЖми ▶ Начать, когда будешь готов.", get_start_keyboard(), False)
 
-async def handle_hold(chat_id, context):
-    data, user = get_user(chat_id)
-    today = NOW().date()
-    last_date = user.get("hold_date")
-    last_time = user.get("hold_time")
-    count = user.get("hold_count", 0)
-    if str(last_date) != str(today):
-        count = 0
-    if last_time:
-        if (NOW() - datetime.fromisoformat(last_time)).total_seconds() < 1800:
-            minutes_left = int((1800 - (NOW() - datetime.fromisoformat(last_time)).total_seconds()) / 60)
-            await send(context.bot, chat_id, f"Погоди ещё {minutes_left} минут, брат.")
-            return
-    if count >= 5:
-        await send(context.bot, chat_id, "Сегодня это уже 5 раз, брат, тормози. Завтра сможешь отправить еще. ✊")
-        return
-    await send(context.bot, chat_id, random.choice(HOLD_RESPONSES), save=False)
-    for uid in get_active_users():
-        if uid != chat_id:
-            try:
-                await context.bot.send_message(uid, "✊")
-                await asyncio.sleep(0.08)
-            except:
-                pass
-    user["hold_time"] = NOW().isoformat()
-    user["hold_date"] = str(today)
-    user["hold_count"] = count + 1
+def reset_streak(user_id):
+    data, user = get_user(user_id)
+    current = get_days(user_id)
+    if current > user["best_streak"]:
+        user["best_streak"] = current
+    user["start_date"] = NOW().isoformat()
+    user["hold_count_today"] = 0
+    user["last_hold_date"] = None
+    user["last_hold_time"] = None
+    user["used_tips"] = []
+    user["used_advice"] = []
     save_data(data)
 
-# ======================= Обработка сообщений =========================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
-    data, user = get_user(chat_id)
-    state = user.get("state", "normal")
+    _, user = get_user(chat_id)
 
-    # Меню тяжело
-    if state == "heavy_menu":
-        if text == "💪 Упражнения":
-            tip = get_next_tip(user)
-            await send(context.bot, chat_id, tip, get_help_keyboard(), False)
-            user["state"] = "help_mode_exercise"
-            save_data(data)
-            return
-        if text == "📖 Советы":
-            advice = get_next_advice(user)
-            await send(context.bot, chat_id, advice, get_help_keyboard(), False)
-            user["state"] = "help_mode_advice"
-            save_data(data)
-            return
-        if text == "😞 Срыв":
-            reset_streak(chat_id)
-            await send(context.bot, chat_id, "Ничего страшного.\nНачнём заново. Ты молодец, что сказал честно.", get_main_keyboard(), False)
-            user["state"] = "normal"
-            save_data(data)
-            return
-        if text == "↩️ Назад":
-            await send(context.bot, chat_id, "Главное меню.", get_main_keyboard(), False)
-            user["state"] = "normal"
-            save_data(data)
-            return
-
-    # Режим показа упражнений/советов
-    if state.startswith("help_mode"):
-        if text == "🔄 Ещё способ":
-            if state == "help_mode_exercise":
-                tip = get_next_tip(user)
-                await send(context.bot, chat_id, tip, get_help_keyboard(), False)
-            else:
-                advice = get_next_advice(user)
-                await send(context.bot, chat_id, advice, get_help_keyboard(), False)
-            save_data(data)
-            return
-        if text == "↩️ Назад":
-            await send(context.bot, chat_id, "Главное меню.", get_heavy_keyboard(), False)
-            user["state"] = "heavy_menu"
-            save_data(data)
-            return
-
-    # Главное меню
-    if text == "✊ Держусь":
-        await handle_hold(chat_id, context)
-        return
-    if text == "😔 Тяжело":
-        await send(context.bot, chat_id, "Выбирай:", get_heavy_keyboard(), False)
-        user["state"] = "heavy_menu"
-        save_data(data)
-        return
-    if text == "📊 Дни":
-        days = get_days(chat_id)
-        await send(context.bot, chat_id, f"Ты держишься {days} дней.\nЛучший стрик: {user.get('best_streak',0)}", get_main_keyboard(), False)
-        return
-    if text == "👋 Ты тут?":
-        await asyncio.sleep(random.randint(2,5))
-        await send(context.bot, chat_id, random.choice(TU_TUT_FIRST), get_main_keyboard(), False)
-        await asyncio.sleep(random.randint(2,4))
-        await send(context.bot, chat_id, random.choice(TU_TUT_SECOND), get_main_keyboard(), False)
-        return
-    if text == "⏸ Пауза":
-        await stop(update, context)
-        return
-    if text == "❤️ Спасибо":
-        await send(context.bot, chat_id, "Рад, что помогаю.", get_main_keyboard(), False)
-        return
     if text == "▶ Начать":
         await start(update, context)
         return
 
+    if not user["active"]:
+        return
+
+    if text == "✊ Держусь":
+        await handle_hold(chat_id, context)
+        return
+
+    if text == "Тяжело":
+        await send(context.bot, chat_id, "Держись, брат. Что нужно?", get_heavy_keyboard(), False)
+        return
+
+    if text == "Дни":
+        days = get_days(chat_id)
+        best = user.get("best_streak", 0)
+        msg = f"Ты держишься {days} дней."
+        if best > days:
+            msg += f"\n\nТвой лучший стрик: {best} дней."
+        elif best > 0:
+            msg += f"\nСейчас идёт твой лучший стрик — {days} дней."
+        await send(context.bot, chat_id, msg, get_main_keyboard(), False)
+        if days in MILESTONES:
+            await send(context.bot, chat_id, MILESTONES[days], get_main_keyboard(), False)
+        return
+
+    if text == "Ты тут?":
+        await asyncio.sleep(random.randint(2,6))
+        await send(context.bot, chat_id, random.choice(TU_TUT_FIRST), get_main_keyboard(), False)
+        await asyncio.sleep(random.randint(2,5))
+        await send(context.bot, chat_id, random.choice(TU_TUT_SECOND), get_main_keyboard(), False)
+        return
+
+    if text == "Спасибо":
+        await send(context.bot, chat_id,
+            "Спасибо, брат, что ты есть. ❤️\n\n"
+            "Если хочешь поддержать того, кто это всё написал:\n"
+            "Сбер 2202 2084 3481 5313\n\n"
+            "Любая сумма — это ещё один человек, которому мы сможем помочь.\n\n"
+            "Главное — держись.", get_main_keyboard(), False)
+        return
+
+    if text == "Пауза":
+        await stop(update, context)
+        return
+
+    if text == "Упражнения":
+        await send(context.bot, chat_id, get_next_tip(user), get_help_keyboard(), False)
+        return
+
+    if text == "Советы":
+        await send(context.bot, chat_id, get_next_advice(user), get_help_keyboard(), False)
+        return
+
+    if text == "Срыв":
+        reset_streak(chat_id)
+        await send(context.bot, chat_id,
+            "Ничего страшного, брат.\n"
+            "Главное — ты сказал честно. Это уже победа.\n"
+            "Начинаем с чистого листа. Я с тобой.", get_main_keyboard(), False)
+        return
+
+    if text in ["Назад", "Назад в меню"]:
+        await send(context.bot, chat_id, "Возвращаемся в меню.", get_main_keyboard(), False)
+        return
+
+    if text == "Ещё способ":
+        # определяем по последнему сообщению бота, что показывали
+        last_text = update.message.reply_to_message.text if update.message.reply_to_message else ""
+        if any(word in last_text for word in ["отжиманий", "вдох", "ледяная", "улицу", "воды", "благодарен", "кислое", "пройдись", "спину"]):
+            await send(context.bot, chat_id, get_next_tip(user), get_help_keyboard(), False)
+        else:
+            await send(context.bot, chat_id, get_next_advice(user), get_help_keyboard(), False)
+        return
+
+    # Если человек просто написал текст — поддержим
+    if len(text) > 8:
+        await send(context.bot, chat_id,
+            "Понимаю, брат. Тяжко.\n"
+            "Жми «✊ Держусь» — всем разошлю, что ты ещё тут.\n"
+            "Или «Тяжело» — подберём способ прямо сейчас.",
+            get_main_keyboard(), False)
+
 # ======================= Main =========================
 def main():
     app = Application.builder().token(TOKEN).build()
+
     app.add_handler(CommandHandler("start", start))
     app.add_handler(CommandHandler("stop", stop))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
+
     app.run_polling()
 
 if __name__ == "__main__":
