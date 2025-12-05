@@ -9,6 +9,7 @@ from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import pytz
 
+# ======================= НАСТРОЙКИ =======================
 logging.basicConfig(format='%(asctime)s — %(levelname)s — %(message)s', level=logging.INFO)
 
 TOKEN = os.getenv("BOT_TOKEN")
@@ -21,7 +22,6 @@ MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 NOW = lambda: datetime.now(MOSCOW_TZ)
 
 # ======================= ТЕКСТЫ =======================
-MORNING_MESSAGES, EVENING_MESSAGES, NIGHT_MESSAGES — твои оригинальные, оставил без изменений
 MORNING_MESSAGES = [
     "Привет. Давай сегодня не будем, хорошо?",
     "Доброе утро, брат. Не сегодня.",
@@ -84,15 +84,15 @@ NIGHT_MESSAGES = [
 ]
 
 MILESTONES = {
-    3: "✨ Три дня без травы. Уже круто.",
-    7: "✨ Неделя. Ты прошёл самый тяжёлый период.",
-    14: "✨ Две недели. Мозг уже начинает жить без неё.",
-    21: "✨ 21 день — новые нейронные связи. Ты уже другой.",
-    30: "✨ Месяц чистым. Уважаю, брат. По-настоящему.",
-    60: "✨ Два месяца. Ты уже не «бросающий». Ты свободный.",
-    90: "✨ 90 дней — точка невозврата. Ты победил.",
-    180: "✨ Полгода без травы. Легенда.",
-    365: "✨ ГОД ЧИСТЫМ. Ты сделал невозможное, брат ❤️"
+    3: "Три дня. Уже круто.",
+    7: "Неделя. Ты прошёл самый тяжёлый период.",
+    14: "Две недели. Мозг уже начинает жить без неё.",
+    21: "21 день — новые нейронные связи. Ты уже другой.",
+    30: "Месяц чистым. Уважаю, брат. По-настоящему.",
+    60: "Два месяца. Ты уже не «бросающий». Ты свободный.",
+    90: "90 дней — точка невозврата. Ты победил.",
+    180: "Полгода без травы. Легенда.",
+    365: "ГОД ЧИСТЫМ. Ты сделал невозможное, брат ❤️"
 }
 
 TU_TUT_FIRST = ["Тут.", "Привет.", "А куда я денусь?", "Здесь.", "Тут, как всегда.", "Да, да.", "Чё как?", "Ага.", "Здравствуй.", "Тут, не переживай."]
@@ -123,31 +123,23 @@ HELP_ADVICE_BY_DAY = [
     "90+ дней: ты прошёл. Никогда не проверяй «а вдруг я теперь могу контролировать». Это конец."
 ]
 
-# ======================= КНОПКИ С ЭМОДЗИ =======================
-def get_main_keyboard():
-    return ReplyKeyboardMarkup([
-        [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
-        [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
-        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
-    ], resize_keyboard=True)
+# ======================= КНОПКИ =======================
+def get_keyboard(layout):
+    return ReplyKeyboardMarkup(layout, resize_keyboard=True)
 
-def get_start_keyboard():
-    return ReplyKeyboardMarkup([[KeyboardButton("▶ Начать")]], resize_keyboard=True)
+MAIN_KEYBOARD = get_keyboard([
+    [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
+    [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
+    [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
+])
 
-def get_heavy_keyboard():
-    return ReplyKeyboardMarkup([
-        [KeyboardButton("💪 Упражнения"), KeyboardButton("🧠 Что происходит с телом")],
-        [KeyboardButton("😞 Срыв"), KeyboardButton("↩ Назад")]
-    ], resize_keyboard=True)
-
-def get_exercise_keyboard():
-    return ReplyKeyboardMarkup([
-        [KeyboardButton("🔄 Другое упражнение")],
-        [KeyboardButton("↩ Назад")]
-    ], resize_keyboard=True)
-
-def get_advice_keyboard():
-    return ReplyKeyboardMarkup([[KeyboardButton("↩ Назад")]], resize_keyboard=True)
+START_KEYBOARD = get_keyboard([[KeyboardButton("▶ Начать")]])
+HEAVY_KEYBOARD = get_keyboard([
+    [KeyboardButton("💪 Упражнения"), KeyboardButton("🧠 Что происходит с телом")],
+    [KeyboardButton("😞 Срыв"), KeyboardButton("↩ Назад")]
+])
+EXERCISE_KEYBOARD = get_keyboard([[KeyboardButton("🔄 Другое упражнение")], [KeyboardButton("↩ Назад")]])
+ADVICE_KEYBOARD = get_keyboard([[KeyboardButton("↩ Назад")]])
 
 # ======================= ДАННЫЕ =======================
 def load_data():
@@ -156,8 +148,8 @@ def load_data():
             try:
                 with open(DATA_FILE, "r", encoding="utf-8") as f:
                     return json.load(f)
-            except:
-                return {}
+            except Exception as e:
+                logging.error(f"Ошибка чтения данных: {e}")
         return {}
 
 def save_data(data):
@@ -196,37 +188,34 @@ def get_next_exercise(user_data):
     if len(used) >= len(HELP_TECHNIQUES):
         used.clear()
     available = [i for i in range(len(HELP_TECHNIQUES)) if i not in used]
-    if not available:
-        used.clear()
-        available = list(range(len(HELP_TECHNIQUES))
     choice = random.choice(available)
     used.append(choice)
     return HELP_TECHNIQUES[choice]
 
 def get_advice_for_day(days):
     if days <= 3: return HELP_ADVICE_BY_DAY[0]
-    elif days <= 7: return HELP_ADVICE_BY_DAY[1]
-    elif days <= 14: return HELP_ADVICE_BY_DAY[2]
-    elif days <= 30: return HELP_ADVICE_BY_DAY[3]
-    elif days <= 60: return HELP_ADVICE_BY_DAY[4]
-    elif days <= 90: return HELP_ADVICE_BY_DAY[5]
-    else: return HELP_ADVICE_BY_DAY[6]
+    if days <= 7: return HELP_ADVICE_BY_DAY[1]
+    if days <= 14: return HELP_ADVICE_BY_DAY[2]
+    if days <= 30: return HELP_ADVICE_BY_DAY[3]
+    if days <= 60: return HELP_ADVICE_BY_DAY[4]
+    if days <= 90: return HELP_ADVICE_BY_DAY[5]
+    return HELP_ADVICE_BY_DAY[6]
 
 # ======================= ОТПРАВКА =======================
 async def send(bot, chat_id, text, keyboard=None, save=True):
-    kb = keyboard or get_main_keyboard()
+    kb = keyboard or MAIN_KEYBOARD
     msg = await bot.send_message(chat_id, text, reply_markup=kb)
     if save:
-        _, user = get_user(chat_id)
-        user["message_ids"].append(msg.message_id)
+        data, user = get_user(chat_id)
+        user.setdefault("message_ids", []).append(msg.message_id)
         if len(user["message_ids"]) > 300:
             user["message_ids"] = user["message_ids"][-300:]
-        save_data(load_data())
+        save_data(data)
     return msg
 
 async def midnight_clean(context):
     chat_id = context.job.chat_id
-    _, user = get_user(chat_id)
+    data, user = get_user(chat_id)
     for msg_id in user.get("message_ids", []):
         try:
             await context.bot.delete_message(chat_id, msg_id)
@@ -234,21 +223,24 @@ async def midnight_clean(context):
         except:
             pass
     user["message_ids"] = []
-    save_data(load_data())
+    save_data(data)
 
 # ======================= РАСПИСАНИЕ =======================
 def schedule_jobs(chat_id, job_queue):
+    # Убираем старые джобы
     for prefix in ["m", "e", "n", "c"]:
         for job in job_queue.get_jobs_by_name(f"{prefix}_{chat_id}"):
             job.schedule_removal()
+    # Добавляем новые
     job_queue.run_daily(lambda ctx: morning_job(ctx, chat_id), time(9, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"m_{chat_id}")
     job_queue.run_daily(lambda ctx: evening_job(ctx, chat_id), time(18, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"e_{chat_id}")
     job_queue.run_daily(lambda ctx: night_job(ctx, chat_id), time(23, 0, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"n_{chat_id}")
     job_queue.run_daily(midnight_clean, time(0, 1, tzinfo=MOSCOW_TZ), chat_id=chat_id, name=f"c_{chat_id}")
 
+# ======================= JOBS =======================
 async def morning_job(context, chat_id):
     _, user = get_user(chat_id)
-    if not user["active"]: return
+    if not user.get("active"): return
     days = get_days(chat_id)
     text = MILESTONES.get(days, random.choice(MORNING_MESSAGES))
     await send(context.bot, chat_id, text)
@@ -257,43 +249,43 @@ async def morning_job(context, chat_id):
 
 async def evening_job(context, chat_id):
     _, user = get_user(chat_id)
-    if not user["active"]: return
+    if not user.get("active"): return
     await send(context.bot, chat_id, random.choice(EVENING_MESSAGES))
 
 async def night_job(context, chat_id):
     _, user = get_user(chat_id)
-    if not user["active"]: return
+    if not user.get("active"): return
     await send(context.bot, chat_id, random.choice(NIGHT_MESSAGES))
 
-# ======================= ДЕРЖУСЬ — С ПРАВИЛЬНЫМ СКЛОНЕНИЕМ =======================
+# ======================= ДЕРЖУСЬ =======================
 async def handle_hold(chat_id, context):
     data, user = get_user(chat_id)
     today = NOW().date()
     count_today = user.get("hold_count_today", 0)
     last_time = user.get("last_hold_time")
 
+    # Новый день — сброс
     if user.get("last_hold_date") != str(today):
         count_today = 0
 
+    # Кулдаун 30 минут
     if last_time:
         delta = (NOW() - datetime.fromisoformat(last_time)).total_seconds()
         if delta < 1800:
             mins = int((1800 - delta) // 60) + 1
-            if mins % 10 == 1 and mins % 100 != 11:
-                word = "минуту"
-            elif 2 <= mins % 10 <= 4 and mins % 100 not in [12,13,14]:
-                word = "минуты"
-            else:
-                word = "минут"
+            if mins % 10 == 1 and mins % 100 != 11: word = "минуту"
+            elif 2 <= mins % 10 <= 4 and mins % 100 not in [12,13,14]: word = "минуты"
+            else: word = "минут"
             await send(context.bot, chat_id, f"Погоди ещё {mins} {word}, брат.", save=False)
             return
 
+    # Лимит 5 раз
     if count_today >= 5:
         await send(context.bot, chat_id, "Сегодня уже 5 раз, брат\nЗавтра снова сможешь.", save=False)
         return
 
+    # Реакция
     await send(context.bot, chat_id, random.choice(HOLD_RESPONSES), save=False)
-
     for uid in get_active_users():
         if uid != chat_id:
             try:
@@ -311,12 +303,14 @@ async def handle_hold(chat_id, context):
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     data, user = get_user(chat_id)
-    user["active"] = True
-    user["start_date"] = NOW().isoformat()
-    user["used_tips"] = []
-    user["hold_count_today"] = 0
-    user["last_hold_date"] = None
-    user["last_hold_time"] = None
+    user.update({
+        "active": True,
+        "start_date": NOW().isoformat(),
+        "used_tips": [],
+        "hold_count_today": 0,
+        "last_hold_date": None,
+        "last_hold_time": None
+    })
     save_data(data)
     await send(context.bot, chat_id,
         "Привет, брат.\n\n"
@@ -334,77 +328,53 @@ async def stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     for prefix in ["m", "e", "n", "c"]:
         for job in context.job_queue.get_jobs_by_name(f"{prefix}_{chat_id}"):
             job.schedule_removal()
-    await send(context.bot, chat_id, "Уведомления остановлены.\nКогда будешь готов — жми ▶ Начать", get_start_keyboard(), False)
+    await send(context.bot, chat_id, "Уведомления остановлены.\nКогда будешь готов — жми ▶ Начать", START_KEYBOARD, False)
 
 def reset_streak(user_id):
     data, user = get_user(user_id)
     current = get_days(user_id)
-    if current > user["best_streak"]:
+    if current > user.get("best_streak", 0):
         user["best_streak"] = current
-    user["start_date"] = NOW().isoformat()
-    user["hold_count_today"] = 0
-    user["last_hold_date"] = None
-    user["last_hold_time"] = None
-    user["used_tips"] = []
+    user.update({
+        "start_date": NOW().isoformat(),
+        "hold_count_today": 0,
+        "last_hold_date": None,
+        "last_hold_time": None,
+        "used_tips": []
+    })
     save_data(data)
 
-# ======================= ОБРАБОТЧИК — С ИДЕАЛЬНЫМ РУССКИМ =======================
+# ======================= ОБРАБОТЧИК СООБЩЕНИЙ =======================
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text.strip()
     chat_id = update.effective_chat.id
     _, user = get_user(chat_id)
 
-    if text == "▶ Начать":
-        await start(update, context)
-        return
-
-    if not user.get("active", False):
-        return
+    if text == "▶ Начать": return await start(update, context)
+    if not user.get("active"): return
 
     days = get_days(chat_id)
 
-    if text == "✊ Держусь":
-        await handle_hold(chat_id, context)
-        return
-
-    if text == "😔 Тяжело":
-        await send(context.bot, chat_id, "Держись, брат. Что будем делать?", get_heavy_keyboard(), False)
-        return
-
+    if text == "✊ Держусь": return await handle_hold(chat_id, context)
+    if text == "😔 Тяжело": return await send(context.bot, chat_id, "Держись, брат. Что будем делать?", HEAVY_KEYBOARD, False)
     if text == "📊 Дни":
         best = user.get("best_streak", 0)
-
-        if days == 0:
-            days_text = "Это твой первый день."
-        elif days == 1:
-            days_text = "Прошёл 1 день."
-        elif days % 10 == 1 and days % 100 != 11:
-            days_text = f"Прошёл {days} день."
-        elif 2 <= days % 10 <= 4 and days % 100 not in [12,13,14]:
-            days_text = f"Прошло {days} дня."
-        else:
-            days_text = f"Прошло {days} дней."
-
+        if days == 0: days_text = "Это твой первый день."
+        elif days == 1: days_text = "Прошёл 1 день."
+        elif 2 <= days % 10 <= 4 and days % 100 not in [12,13,14]: days_text = f"Прошло {days} дня."
+        else: days_text = f"Прошло {days} дней."
         msg = f"Ты держишься. {days_text}"
-
-        if best > days:
-            msg += f"\n\nЛучший стрик был: {best} дней."
-        elif best > 0:
-            msg += f"\n\nЭто твой лучший стрик прямо сейчас."
-
+        if best > days: msg += f"\n\nЛучший стрик был: {best} дней."
+        elif best > 0: msg += f"\n\nЭто твой лучший стрик прямо сейчас."
         await send(context.bot, chat_id, msg, save=False)
-
-        if days in MILESTONES:
-            await send(context.bot, chat_id, MILESTONES[days], save=False)
+        if days in MILESTONES: await send(context.bot, chat_id, MILESTONES[days], save=False)
         return
-
     if text == "👋 Ты тут?":
         await asyncio.sleep(random.randint(2,6))
         await send(context.bot, chat_id, random.choice(TU_TUT_FIRST), save=False)
         await asyncio.sleep(random.randint(2,5))
         await send(context.bot, chat_id, random.choice(TU_TUT_SECOND), save=False)
         return
-
     if text == "❤️ Спасибо":
         await send(context.bot, chat_id,
             "Спасибо тебе, брат, что ты есть. ❤️\n\n"
@@ -413,34 +383,16 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Любая сумма = ещё одному человеку поможем.\n\n"
             "Главное — держись.", save=False)
         return
-
-    if text == "⏸ Помолчи":
-        await stop(update, context)
-        return
-
-    if text == "💪 Упражнения":
-        await send(context.bot, chat_id, get_next_exercise(user), get_exercise_keyboard(), False)
-        return
-
-    if text == "🧠 Что происходит с телом":
-        await send(context.bot, chat_id, get_advice_for_day(days), get_advice_keyboard(), False)
-        return
-
-    if text == "🔄 Другое упражнение":
-        await send(context.bot, chat_id, get_next_exercise(user), get_exercise_keyboard(), False)
-        return
-
+    if text == "⏸ Помолчи": return await stop(update, context)
+    if text == "💪 Упражнения": return await send(context.bot, chat_id, get_next_exercise(user), EXERCISE_KEYBOARD, False)
+    if text == "🧠 Что происходит с телом": return await send(context.bot, chat_id, get_advice_for_day(days), ADVICE_KEYBOARD, False)
+    if text == "🔄 Другое упражнение": return await send(context.bot, chat_id, get_next_exercise(user), EXERCISE_KEYBOARD, False)
     if text == "😞 Срыв":
         reset_streak(chat_id)
-        await send(context.bot, chat_id,
+        return await send(context.bot, chat_id,
             "Ничего страшного, брат.\nГлавное — ты сказал честно.\nЭто уже победа.\n"
             "Начинаем с чистого листа. Я с тобой.", save=False)
-        return
-
-    if text == "↩ Назад":
-        await send(context.bot, chat_id, "Возвращаемся.", get_main_keyboard(), False)
-        return
-
+    if text == "↩ Назад": return await send(context.bot, chat_id, "Возвращаемся.", MAIN_KEYBOARD, False)
     if len(text) > 8:
         await send(context.bot, chat_id,
             "Понимаю, брат. Тяжко.\n"
