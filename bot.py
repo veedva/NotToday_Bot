@@ -183,19 +183,13 @@ def get_heavy_keyboard():
         [KeyboardButton("🔥 Упражнение"), KeyboardButton("🧠 Наука")],
         [KeyboardButton("💔 Срыв"), KeyboardButton("🤯 Искажения")],
         [KeyboardButton("🤝 Помощь другу"), KeyboardButton("🧘 Триггеры")],
-        [KeyboardButton("↩ Назад")]
+        [KeyboardButton("🩺 Протоколы"), KeyboardButton("↩ Назад")]
     ], resize_keyboard=True)
 
 def get_protocols_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("💤 Сон"), KeyboardButton("😰 Тревога")],
         [KeyboardButton("🍽 Аппетит"), KeyboardButton("⚡ Паника")],
-        [KeyboardButton("↩ Назад")]
-    ], resize_keyboard=True)
-
-def get_exercise_keyboard():
-    return ReplyKeyboardMarkup([
-        [KeyboardButton("🔄 Другое упражнение")],
         [KeyboardButton("↩ Назад")]
     ], resize_keyboard=True)
 
@@ -364,22 +358,41 @@ def reset_streak(user_id):
     data[str(user_id)] = user
     save_data(data)
 
-async def send_message(bot, chat_id, text, keyboard=None, save=True):
+async def morning_job(context):
+    chat_id = context.job.chat_id
     try:
-        reply_markup = keyboard if keyboard else get_main_keyboard()
-        msg = await bot.send_message(chat_id, text, reply_markup=reply_markup)
-        if save:
-            data, user = get_user_data(chat_id)
-            user.setdefault("message_ids", [])
-            user["message_ids"].append(msg.message_id)
-            if len(user["message_ids"]) > 300:
-                user["message_ids"] = user["message_ids"][-300:]
-            data[str(chat_id)] = user
-            save_data(data)
-        return msg
+        _, user = get_user_data(chat_id)
+        if not user.get("active", False):
+            return
+        
+        days = get_days_since_start(chat_id)
+        
+        if days in MILESTONES:
+            await context.bot.send_message(chat_id, f"{random.choice(MORNING_MESSAGES)}\n\n{MILESTONES[days]}", reply_markup=get_main_keyboard())
+        else:
+            await context.bot.send_message(chat_id, random.choice(MORNING_MESSAGES), reply_markup=get_main_keyboard())
     except Exception as e:
-        logger.error(f"Ошибка отправки {chat_id}: {e}")
-        return None
+        logger.error(f"Ошибка утреннего задания для {chat_id}: {e}")
+
+async def evening_job(context):
+    chat_id = context.job.chat_id
+    try:
+        _, user = get_user_data(chat_id)
+        if not user.get("active", False):
+            return
+        await context.bot.send_message(chat_id, random.choice(EVENING_MESSAGES), reply_markup=get_main_keyboard())
+    except Exception as e:
+        logger.error(f"Ошибка вечернего задания для {chat_id}: {e}")
+
+async def night_job(context):
+    chat_id = context.job.chat_id
+    try:
+        _, user = get_user_data(chat_id)
+        if not user.get("active", False):
+            return
+        await context.bot.send_message(chat_id, random.choice(NIGHT_MESSAGES), reply_markup=get_main_keyboard())
+    except Exception as e:
+        logger.error(f"Ошибка ночного задания для {chat_id}: {e}")
 
 async def midnight_cleanup(context):
     chat_id = context.job.chat_id
@@ -415,43 +428,7 @@ def schedule_user_jobs(chat_id, job_queue):
     except Exception as e:
         logger.error(f"Ошибка планирования заданий для {chat_id}: {e}")
 
-async def morning_job(context):
-    chat_id = context.job.chat_id
-    try:
-        _, user = get_user_data(chat_id)
-        if not user.get("active", False):
-            return
-        
-        days = get_days_since_start(chat_id)
-        
-        if days in MILESTONES:
-            await send_message(context.bot, chat_id, f"{random.choice(MORNING_MESSAGES)}\n\n{MILESTONES[days]}")
-        else:
-            await send_message(context.bot, chat_id, random.choice(MORNING_MESSAGES))
-    except Exception as e:
-        logger.error(f"Ошибка утреннего задания для {chat_id}: {e}")
-
-async def evening_job(context):
-    chat_id = context.job.chat_id
-    try:
-        _, user = get_user_data(chat_id)
-        if not user.get("active", False):
-            return
-        await send_message(context.bot, chat_id, random.choice(EVENING_MESSAGES))
-    except Exception as e:
-        logger.error(f"Ошибка вечернего задания для {chat_id}: {e}")
-
-async def night_job(context):
-    chat_id = context.job.chat_id
-    try:
-        _, user = get_user_data(chat_id)
-        if not user.get("active", False):
-            return
-        await send_message(context.bot, chat_id, random.choice(NIGHT_MESSAGES))
-    except Exception as e:
-        logger.error(f"Ошибка ночного задания для {chat_id}: {e}")
-
-async def start_command(update, context):
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
         data, user = get_user_data(chat_id)
@@ -467,7 +444,7 @@ async def start_command(update, context):
             data[str(chat_id)] = user
             save_data(data)
             
-            schedule_user_jobs(chat_id, context.job_queue)
+            schedule_user_jobs(chat_id, context.application.job_queue)
         
         days = get_days_since_start(chat_id)
         if days == 0:
@@ -482,7 +459,7 @@ async def start_command(update, context):
         logger.error(f"Ошибка в start_command для {chat_id}: {e}")
         await update.message.reply_text("Произошла ошибка. Попробуйте снова.")
 
-async def stop_command(update, context):
+async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
         data, user = get_user_data(chat_id)
@@ -491,7 +468,7 @@ async def stop_command(update, context):
         save_data(data)
         
         for prefix in ["morning", "evening", "night", "cleanup"]:
-            for job in context.job_queue.jobs():
+            for job in context.application.job_queue.jobs():
                 if job.name == f"{prefix}_{chat_id}":
                     job.schedule_removal()
         
@@ -499,7 +476,7 @@ async def stop_command(update, context):
     except Exception as e:
         logger.error(f"Ошибка в stop_command для {chat_id}: {e}")
 
-async def handle_hold(update, context):
+async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
         _, user = get_user_data(chat_id)
@@ -559,22 +536,18 @@ async def handle_hold(update, context):
         logger.error(f"Ошибка в handle_hold для {chat_id}: {e}")
         await update.message.reply_text("Произошла ошибка. Попробуйте снова.", reply_markup=get_main_keyboard())
 
-async def handle_heavy(update, context):
+async def handle_heavy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Что нужно?", reply_markup=get_heavy_keyboard())
 
-async def handle_exercise(update, context):
+async def handle_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
     exercise = get_next_exercise(update.effective_chat.id)
-    await update.message.reply_text(exercise, reply_markup=get_exercise_keyboard())
+    await update.message.reply_text(exercise, reply_markup=get_heavy_keyboard())
 
-async def handle_another_exercise(update, context):
-    exercise = get_next_exercise(update.effective_chat.id)
-    await update.message.reply_text(exercise, reply_markup=get_exercise_keyboard())
-
-async def handle_science(update, context):
+async def handle_science(update: Update, context: ContextTypes.DEFAULT_TYPE):
     science = get_next_science(update.effective_chat.id)
     await update.message.reply_text(science, reply_markup=get_heavy_keyboard())
 
-async def handle_breakdown(update, context):
+async def handle_breakdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     breakdown_text = (
         "Срыв — это часть процесса\n\n"
         "Факт: 85% людей срываются в первые 30 дней.\n"
@@ -594,7 +567,7 @@ async def handle_breakdown(update, context):
     )
     return BREAKDOWN_STATE
 
-async def handle_breakdown_response(update, context):
+async def handle_breakdown_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
     chat_id = update.effective_chat.id
     
@@ -628,21 +601,23 @@ async def handle_breakdown_response(update, context):
         await update.message.reply_text("Произошла ошибка.", reply_markup=get_main_keyboard())
         return ConversationHandler.END
 
-async def handle_distortions(update, context):
+async def handle_distortions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     distortion = random.choice(COGNITIVE_DISTORTIONS)
     await update.message.reply_text(distortion, reply_markup=get_heavy_keyboard())
 
-async def handle_friend_help(update, context):
+async def handle_friend_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
     advice = random.choice(FRIEND_HELP_ADVICE)
     await update.message.reply_text(advice, reply_markup=get_heavy_keyboard())
 
-async def handle_triggers(update, context):
+async def handle_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trigger = random.choice(TRIGGER_RESPONSES)
     await update.message.reply_text(trigger, reply_markup=get_heavy_keyboard())
 
-async def handle_protocol(update, context):
+async def handle_protocols_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Выбери протокол:", reply_markup=get_protocols_keyboard())
+
+async def handle_protocol(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
-    chat_id = update.effective_chat.id
     
     protocol_map = {
         "💤 Сон": "сон",
@@ -656,7 +631,7 @@ async def handle_protocol(update, context):
         protocol = get_protocol(protocol_type)
         await update.message.reply_text(protocol, reply_markup=get_protocols_keyboard())
 
-async def handle_days(update, context):
+async def handle_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
         _, user = get_user_data(chat_id)
@@ -685,7 +660,7 @@ async def handle_days(update, context):
         logger.error(f"Ошибка в handle_days для {chat_id}: {e}")
         await update.message.reply_text("Произошла ошибка.", reply_markup=get_main_keyboard())
 
-async def handle_are_you_here(update, context):
+async def handle_are_you_here(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
         await asyncio.sleep(random.randint(2, 6))
@@ -695,14 +670,14 @@ async def handle_are_you_here(update, context):
     except Exception as e:
         logger.error(f"Ошибка в handle_are_you_here для {chat_id}: {e}")
 
-async def handle_thank_you(update, context):
+async def handle_thank_you(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "Спасибо тебе, что ты есть. ❤️\n\nЕсли хочешь поддержать:\nСбер 2202 2084 3481 5313\n\nЛюбая сумма = ещё одному человеку поможем.\n\nГлавное — держись."
     await update.message.reply_text(text, reply_markup=get_main_keyboard())
 
-async def handle_back(update, context):
+async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Окей", reply_markup=get_main_keyboard())
 
-async def handle_text_message(update, context):
+async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
     if not update.message or not update.message.text:
         return
     
@@ -753,7 +728,6 @@ def main():
     application.add_handler(MessageHandler(filters.Regex("^✊ Держусь$"), handle_hold))
     application.add_handler(MessageHandler(filters.Regex("^😔 Тяжело$"), handle_heavy))
     application.add_handler(MessageHandler(filters.Regex("^🔥 Упражнение$"), handle_exercise))
-    application.add_handler(MessageHandler(filters.Regex("^🔄 Другое упражнение$"), handle_another_exercise))
     application.add_handler(MessageHandler(filters.Regex("^🧠 Наука$"), handle_science))
     application.add_handler(MessageHandler(filters.Regex("^📊 Дни$"), handle_days))
     application.add_handler(MessageHandler(filters.Regex("^👋 Ты тут\?$"), handle_are_you_here))
@@ -762,6 +736,7 @@ def main():
     application.add_handler(MessageHandler(filters.Regex("^🤯 Искажения$"), handle_distortions))
     application.add_handler(MessageHandler(filters.Regex("^🤝 Помощь другу$"), handle_friend_help))
     application.add_handler(MessageHandler(filters.Regex("^🧘 Триггеры$"), handle_triggers))
+    application.add_handler(MessageHandler(filters.Regex("^🩺 Протоколы$"), handle_protocols_menu))
     
     application.add_handler(MessageHandler(filters.Regex("^💤 Сон$"), handle_protocol))
     application.add_handler(MessageHandler(filters.Regex("^😰 Тревога$"), handle_protocol))
