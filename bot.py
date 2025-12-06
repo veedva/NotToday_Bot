@@ -497,7 +497,7 @@ _data_lock = asyncio.Lock()
 
 def get_main_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("✊ Держусь"), KeyboardButton("("😔 Тяжело")],
+        [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
         [KeyboardButton("👋 Ты тут?"), KeyboardButton("📊 Дни")],
         [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
     ], resize_keyboard=True)
