@@ -6,7 +6,10 @@ import asyncio
 from datetime import datetime, time
 from filelock import FileLock
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
-from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
+from telegram.ext import (
+    Application, CommandHandler, MessageHandler, filters, ContextTypes,
+    ConversationHandler
+)
 import pytz
 
 logging.basicConfig(format='%(asctime)s — %(levelname)s — %(message)s', level=logging.INFO)
@@ -19,6 +22,9 @@ DATA_FILE = "user_data.json"
 LOCK_FILE = DATA_FILE + ".lock"
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
 NOW = lambda: datetime.now(MOSCOW_TZ)
+
+# Состояния для ConversationHandler
+REFLECTION, HEAVY_STATE, BREAKDOWN_STATE = range(3)
 
 # ======================= ТЕКСТЫ =======================
 MORNING_MESSAGES = [
@@ -98,7 +104,7 @@ TU_TUT_SECOND = ["Держимся.", "Я с тобой.", "Всё по план
 
 HOLD_RESPONSES = ["Отправлено. ✊", "Молодец. ✊", "Понял. ✊", "Так держать. ✊"]
 
-# ======================= 25 ЛУЧШИХ ТЕХНИК — 2.0 =======================
+# 25 ЛУЧШИХ ТЕХНИК — ФИНАЛЬНЫЕ, ЧЕЛОВЕЧНЫЕ, НАУЧНЫЕ
 HELP_TECHNIQUES = [
     "Лёд на запястья на 30–60 секунд. Холод резко снижает кортизол — тяга уходит за минуту.",
     "Дыхание 4-7-8: вдох на 4 секунды → задержка на 7 → выдох на 8. Повтори 4 раза. Успокаивает мгновенно.",
@@ -127,7 +133,6 @@ HELP_TECHNIQUES = [
     "Включи любимый трек на полную и подвигайся 3 минуты. Новый дофамин без вещества."
 ]
 
-# ======================= ЧТО ПРОИСХОДИТ С ТЕЛОМ — 2.0 =======================
 HELP_ADVICE_BY_DAY = [
     "День 0–3: острая нехватка дофамина и серотонина. Мозг в панике орёт «верни привычку». Это физическая ломка. Перетерпи — пик пройдёт через 72 часа.",
     "Дни 4–7: рецепторы начинают оживать. Тяга ещё сильная, но появляются первые окна нормального настроения. Ты уже сильнее, чем вчера.",
@@ -165,6 +170,29 @@ def get_advice_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("↩ Назад")]
     ], resize_keyboard=True)
+
+# Психологические клавиатуры
+TRIGGER_KEYBOARD = ReplyKeyboardMarkup([
+    [KeyboardButton("🧠 Мысль «хочу»"), KeyboardButton("😡 Эмоция")],
+    [KeyboardButton("💭 Скука"), KeyboardButton("😰 Тревога")],
+    [KeyboardButton("🤝 Компания"), KeyboardButton("🤷 Не знаю")]
+], resize_keyboard=True)
+
+HEAVY_KEYBOARD = ReplyKeyboardMarkup([
+    [KeyboardButton("🔥 Очень тянет"), KeyboardButton("🐍 Неспокойно внутри")],
+    [KeyboardButton("💭 Думаю об этом"), KeyboardButton("👤 Одиночество")],
+    [KeyboardButton("🤷 Хрен знает")]
+], resize_keyboard=True)
+
+BREAKDOWN_KEYBOARD = ReplyKeyboardMarkup([
+    [KeyboardButton("🧠 «Похер всё»"), KeyboardButton("😡 Эмоция сильнее")],
+    [KeyboardButton("💭 Просто привычка"), KeyboardButton("🤝 Друзья/окружение")],
+    [KeyboardButton("🧱 Не понимаю")]
+], resize_keyboard=True)
+
+AFTER_REFLECTION = ReplyKeyboardMarkup([
+    [KeyboardButton("🔥 Дай упражнение"), KeyboardButton("✊ Я в порядке")]
+], resize_keyboard=True)
 
 # ======================= ДАННЫЕ =======================
 def load_data():
@@ -285,8 +313,8 @@ async def night_job(context, chat_id):
     if not user["active"]: return
     await send(context.bot, chat_id, random.choice(NIGHT_MESSAGES))
 
-# ======================= ✊ ДЕРЖУСЬ — С ГРАМОТНЫМИ ПАДЕЖАМИ =======================
-async def handle_hold(chat_id, context):
+# ======================= ЛОГИКА ✊ ДЕРЖУСЬ =======================
+async def handle_hold_logic(chat_id, context):
     data, user = get_user(chat_id)
     today = NOW().date()
     count_today = user.get("hold_count_today", 0)
@@ -325,6 +353,90 @@ async def handle_hold(chat_id, context):
     user["last_hold_date"] = str(today)
     user["hold_count_today"] = count_today + 1
     save_data(data)
+
+# ======================= ПСИХОЛОГИЧЕСКИЙ МОДУЛЬ =======================
+async def hold_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await handle_hold_logic(update.effective_chat.id, context)
+    await update.message.reply_text(
+        "Красавчик, что нажал.\n"
+        "Один быстрый вопрос — что было ближе всего?",
+        reply_markup=TRIGGER_KEYBOARD
+    )
+    return REFLECTION
+
+async def reflection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    responses = {
+        "🧠 Мысль «хочу»": "Это просто мысль. Она не приказ.\nМожешь посмотреть на неё и отпустить.",
+        "😡 Эмоция": "Эмоция — как волна. Поднимается и спадает.\nТы не обязан ей подчиняться.",
+        "💭 Скука": "Скука часто маскируется под тягу.\nМозг просто ищет дофамин.",
+        "😰 Тревога": "Тревога хочет, чтобы ты убежал.\nНо ты уже здесь — значит, выбрал остаться.",
+        "🤝 Компания": "Социальное давление — самый сильный триггер.\nТы имеешь право быть собой.",
+        "🤷 Не знаю": "Не знать — тоже нормально.\nГлавное, что ты не сдался."
+    }
+    await update.message.reply_text(
+        responses.get(text, "Ты молодец, что держишься.") + "\n\nЧто дальше?",
+        reply_markup=AFTER_REFLECTION
+    )
+    return ConversationHandler.END
+
+async def after_reflection(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text.lower()
+    if "упражнение" in text:
+        user_data = get_user(update.effective_chat.id)[1]
+        await update.message.reply_text(get_next_exercise(user_data), reply_markup=get_exercise_keyboard())
+    else:
+        await update.message.reply_text("Ты в порядке. Горжусь тобой.", reply_markup=get_main_keyboard())
+    return ConversationHandler.END
+
+async def heavy_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Я здесь, брат.\n"
+        "Как это ощущается прямо сейчас?",
+        reply_markup=HEAVY_KEYBOARD
+    )
+    return HEAVY_STATE
+
+async def heavy_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    responses = {
+        "🔥 Очень тянет": "Это пик волны. Он длится 3–7 минут. Ты уже прошёл половину.",
+        "🐍 Неспокойно внутри": "Тело в стрессе. Дыхание или холод — твой лучший друг сейчас.",
+        "💭 Думаю об этом": "Мысли крутятся по кругу. Назови их — и они потеряют силу.",
+        "👤 Одиночество": "Тяга часто приходит вместо близости.\nТы не один — ты здесь со мной.",
+        "🤷 Хрен знает": "Иногда мозг просто шумит. Это пройдёт."
+    }
+    await update.message.reply_text(
+        responses.get(text, "Ты справишься.") + "\n\nДержись.",
+        reply_markup=get_heavy_keyboard()
+    )
+    return ConversationHandler.END
+
+async def breakdown_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text(
+        "Спасибо, что сказал честно.\n"
+        "Срыв — не конец. Это данные.\n\n"
+        "Что было ближе всего?",
+        reply_markup=BREAKDOWN_KEYBOARD
+    )
+    return BREAKDOWN_STATE
+
+async def breakdown_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    responses = {
+        "🧠 «Похер всё»": "«Похер» — это не про кайф. Это про усталость и боль.\nКогда придёт снова — скажи: «Я устал». Это честнее.",
+        "😡 Эмоция сильнее": "Эмоции не враги. Они сигналы.\nТы уже научился их замечать — это победа.",
+        "💭 Просто привычка": "Привычка — это мозг на автопилоте.\nТы уже вышел из него, раз рассказал.",
+        "🤝 Друзья/окружение": "Среда давит сильнее всего.\nТы имеешь право выбирать своё окружение.",
+        "🧱 Не понимаю": "Не понимать — нормально.\nГлавное — ты не сдался."
+    }
+    await update.message.reply_text(
+        responses.get(text, "Ты сделал шаг вперёд, сказав об этом.") + 
+        "\n\nНачинаем с чистого листа. Я с тобой.",
+        reply_markup=get_main_keyboard()
+    )
+    reset_streak(update.effective_chat.id)
+    return ConversationHandler.END
 
 # ======================= КОМАНДЫ =======================
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -384,21 +496,23 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     days = get_days(chat_id)
 
-    if text == "✊ Держусь":
-        await handle_hold(chat_id, context)
-        return
-
-    if text == "😔 Тяжело":
-        await send(context.bot, chat_id, "Держись, брат. Что будем делать?", get_heavy_keyboard(), False)
-        return
-
     if text == "📊 Дни":
         best = user.get("best_streak", 0)
-        msg = f"Ты держишься {days} дней"
+
+        if days == 0:
+            msg = "Только начал. Первый день — самый тяжёлый.\nТы уже герой, что решился."
+        elif days == 1:
+            msg = "Ты держишься 1 день"
+        elif days in [2, 3, 4]:
+            msg = f"Ты держишься {days} дня"
+        else:
+            msg = f"Ты держишься {days} дней"
+
         if best > days:
             msg += f"\n\nЛучший стрик был: {best} дней"
         elif best > 0 and best == days:
             msg += f"\n\nЭто твой лучший стрик прямо сейчас"
+
         await send(context.bot, chat_id, msg, save=False)
         if days in MILESTONES:
             await send(context.bot, chat_id, MILESTONES[days], save=False)
@@ -424,7 +538,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await stop(update, context)
         return
 
-    # ЭМОДЗИ-КНОПКИ
     if text in ["🔥 Упражнение", "Упражнения", "Упражнение"]:
         await send(context.bot, chat_id, get_next_exercise(user), get_exercise_keyboard(), False)
         return
@@ -435,13 +548,6 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     if text in ["🔄 Другое упражнение", "Другое упражнение"]:
         await send(context.bot, chat_id, get_next_exercise(user), get_exercise_keyboard(), False)
-        return
-
-    if text in ["💔 Срыв", "Срыв"]:
-        reset_streak(chat_id)
-        await send(context.bot, chat_id,
-            "Ничего страшного, брат.\nГлавное — ты сказал честно.\nЭто уже победа.\n"
-            "Начинаем с чистого листа. Я с тобой.", get_main_keyboard(), False)
         return
 
     if text in ["↩ Назад", "Назад"]:
@@ -457,10 +563,45 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
 # ======================= ЗАПУСК =======================
 def main():
     app = Application.builder().token(TOKEN).build()
+
+    # Психологический модуль для ✊ Держусь
+    hold_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex("^✊ Держусь$"), hold_start)],
+        states={
+            REFLECTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, reflection)],
+            ConversationHandler.TIMEOUT: [MessageHandler(filters.TEXT & ~filters.COMMAND, after_reflection)]
+        },
+        fallbacks=[],
+        conversation_timeout=600
+    )
+
+    # Для 😔 Тяжело
+    heavy_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex("^😔 Тяжело$"), heavy_start)],
+        states={
+            HEAVY_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, heavy_response)]
+        },
+        fallbacks=[],
+        conversation_timeout=600
+    )
+
+    # Для 💔 Срыв
+    breakdown_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex("^💔 Срыв$"), breakdown_start)],
+        states={
+            BREAKDOWN_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, breakdown_response)]
+        },
+        fallbacks=[],
+        conversation_timeout=600
+    )
+
+    app.add_handler(hold_conv)
+    app.add_handler(heavy_conv)
+    app.add_handler(breakdown_conv)
     app.add_handler(CommandHandler("start", start))
-    app.add_handler(CommandHandler("stop", stop))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
-    print("БОТ ХЕЛПА 2.0 — ФИНАЛЬНАЯ ВЕРСИЯ — ЗАПУЩЕН ✊")
+
+    print("БОТ ХЕЛПА 3.0 — ФИНАЛЬНАЯ РЕЛИЗНАЯ ВЕРСИЯ — ЗАПУЩЕН ✊")
     app.run_polling()
 
 if __name__ == "__main__":
