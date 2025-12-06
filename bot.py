@@ -26,6 +26,7 @@ if not TOKEN:
 DATA_FILE = "user_data.json"
 LOCK_FILE = DATA_FILE + ".lock"
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
+BREAKDOWN_STATE = 1
 
 MORNING_MESSAGES = [
     "Привет. Давай сегодня не будем, хорошо?", "Доброе утро. Не сегодня.", "Привет. Держимся сегодня?",
@@ -104,56 +105,67 @@ HELP_TECHNIQUES = [
 ]
 
 SCIENCE_MATERIALS = [
-    "🧬 Дни 1-3: пик симптомов. Рецепторы требуют дофамин. Это ломка.",
-    "📊 Дни 4-7: симптомы -40%. Настроение скачет. Появляются окна ясности.",
-    "🔬 CB1-рецепторы восстанавливаются за 4-6 недель.",
-    "🧠 Дофаминовая система приходит в норму через 2-4 недели.",
-    "⚡ Пик физических симптомов — 72 часа.",
-    "🔄 75% людей срываются в первые 30 дней — это нормально.",
-    "💪 Каждая попытка укрепляет нейронные пути."
+    "🧬 Что сейчас происходит:\nДни 1-3: пик симптомов. Рецепторы требуют дофамин. Это ломка.\nДни 4-7: симптомы -40%. Настроение скачет. Появляются окна ясности.\nДни 8-14: рецепторы оживают. Сон налаживается.\nДни 15-28: мозг работает чище. Энергия возвращается.\nДни 29-90: полная перезагрузка. Жизнь без зависимости.",
+    
+    "📊 Стадии восстановления:\n1-3 дня: острая фаза. Пик симптомов.\n4-7 дней: подострая. Симптомы спадают.\n8-14 дней: адаптация. Рецепторы оживают.\n15-28 дней: восстановление. Эмоции стабильны.\n29-90 дней: стабилизация. Новая норма.",
+    
+    "🔬 Факты науки:\n• CB1-рецепторы восстанавливаются за 4-6 недель\n• Дофаминовая система приходит в норму через 2-4 недели\n• Сон нормализуется к 14-21 дню\n• Пик физических симптомов — 72 часа\n• 75% людей срываются в первые 30 дней — это нормально\n• Каждая попытка укрепляет нейронные пути",
+    
+    "🧠 Нейронаука:\nТяга — это нейрохимический процесс. Мозг требует привычный дофамин. Рецепторы отвыкают за 4 недели. Каждый день чистоты перестраивает нейронные связи. Срыв не стирает прогресс — мозг запоминает каждый день без вещества.",
+    
+    "⚡ Физиология:\nПервые 72 часа: температура, потливость, тревога 8/10.\nНеделя: энергия нулевая, сон прерывистый.\nДве недели: появляется естественная радость от простых вещей.\nМесяц: мозг производит дофамин сам. Когнитивные функции +25%.\nТри месяца: полное восстановление. Тяга редко и слабо."
 ]
 
 PROTOCOLS = {
     "сон": [
-        "💤 За 2 часа до сна — никаких экранов. Температура 18°C.",
-        "💤 Не спится — встань. 15 мин чтения бумажной книги.",
-        "💤 Дыхание 4-7-8 в кровати. 6 циклов.",
-        "💤 Белый шум/дождь 30 мин. Мозг фокусируется на монотонном звуке."
+        "💤 Сон сейчас: За 2 часа до сна — никаких экранов. Температура 18°C.",
+        "💤 Сон сейчас: Не спится — встань. 15 мин чтения бумажной книги.",
+        "💤 Сон сейчас: Дыхание 4-7-8 в кровати. 6 циклов.",
+        "💤 Сон сейчас: Белый шум/дождь 30 мин. Мозг фокусируется на монотонном звуке."
     ],
     "тревога": [
-        "😰 Холодное умывание 30 сек. Активирует блуждающий нерв.",
-        "😰 5-4-3-2-1: 5 вижу, 4 трогаю, 3 слышу, 2 нюхаю, 1 вкус.",
-        "😰 Планка до отказа. Мышцы горят — мозг забывает про тревогу.",
-        "😰 «Это просто тревога. Пройдёт через 15 мин». Скажи вслух 3 раза."
+        "😰 Тревога сейчас: Холодное умывание 30 сек. Активирует блуждающий нерв.",
+        "😰 Тревога сейчас: 5-4-3-2-1: 5 вижу, 4 трогаю, 3 слышу, 2 нюхаю, 1 вкус.",
+        "😰 Тревога сейчас: Планка до отказа. Мышцы горят — мозг забывает про тревогу.",
+        "😰 Тревога сейчас: «Это просто тревога. Пройдёт через 15 мин». Скажи вслух 3 раза."
     ],
     "аппетит": [
-        "🍽 Жидкая пища первые дни. Смузи, бульон.",
-        "🍽 Маленькие порции каждые 3 часа. Орехи, банан, йогурт.",
-        "🍽 Имбирь/лимон в воду. Стимулирует ЖКТ.",
-        "🍽 Не заставляй себя. Тело знает, когда готово."
+        "🍽 Аппетит сейчас: Жидкая пища первые дни. Смузи, бульон.",
+        "🍽 Аппетит сейчас: Маленькие порции каждые 3 часа. Орехи, банан, йогурт.",
+        "🍽 Аппетит сейчас: Имбирь/лимон в воду. Стимулирует ЖКТ.",
+        "🍽 Аппетит сейчас: Не заставляй себя. Тело знает, когда готово."
     ],
     "паника": [
-        "⚡ Лёд в рот 30 сек. Шок для нервной системы.",
-        "⚡ Быстрая прогулка 7-10 мин. Движение сжигает адреналин.",
-        "⚡ «Я в безопасности сейчас». Повтори как мантру.",
-        "⚡ Позвони кому-то. Голос выводит из петли паники."
+        "⚡ Паника сейчас: Лёд в рот 30 сек. Шок для нервной системы.",
+        "⚡ Паника сейчас: Быстрая прогулка 7-10 мин. Движение сжигает адреналин.",
+        "⚡ Паника сейчас: «Я в безопасности сейчас». Повтори как мантру.",
+        "⚡ Паника сейчас: Позвони кому-то. Голос выводит из петли паники."
     ]
 }
 
 COGNITIVE_DISTORTIONS = [
-    "🤯 «Я всё испортил» → Один срыв ≠ провал. Мозг учится.",
-    "🤯 «Ничего не работает» → Работает, но медленно. Нейропластичность требует времени.",
-    "🤯 «Я слабый» → Зависимость — болезнь, а не слабость.",
-    "🤯 «Всё бессмысленно» → Смысл появится через 2-3 недели.",
-    "🤯 «У других получается» → У всех свои сроки. Ты видишь только результат."
+    "🤯 «Я всё испортил»\nФакт: Один срыв ≠ провал. Мозг учится. Каждая попытка укрепляет нейронные пути.",
+    "🤯 «Ничего не работает»\nФакт: Работает, но медленно. Нейропластичность требует времени.",
+    "🤯 «Я слабый»\nФакт: Зависимость — болезнь, а не слабость. Ты борешься с нейрохимическим дисбалансом.",
+    "🤯 «Всё бессмысленно»\nФакт: Смысл появится через 2-3 недели. Сейчас мозг в режиме выживания.",
+    "🤯 «У других получается»\nФакт: У всех свои сроки. Ты видишь только результат, а не 5 попыток до него."
 ]
 
 FRIEND_HELP_ADVICE = [
-    "🤝 Напиши «Держусь, брат» раз в день. Не жди ответа.",
-    "🤝 «Гуляю 15 мин, присоединяйся если хочешь». Без давления.",
-    "🤝 Не давай советов. Скажи: «Я рядом. Расскажи, если хочешь».",
-    "🤝 Напомни о прогрессе: «Ты уже 3 дня держишься, это круто».",
-    "🤝 «Давай 4-7-8: вдох… задержка… выдох». Вместе."
+    "🤝 Другу: Напиши «Держусь, брат» раз в день. Не жди ответа.",
+    "🤝 Другу: «Гуляю 15 мин, присоединяйся если хочешь». Без давления.",
+    "🤝 Другу: Не давай советов. Скажи: «Я рядом. Расскажи, если хочешь».",
+    "🤝 Другу: Напомни о прогрессе: «Ты уже 3 дня держишься, это круто».",
+    "🤝 Другу: «Давай 4-7-8: вдох… задержка… выдох». Вместе."
+]
+
+TRIGGER_RESPONSES = [
+    "🧠 Мысль «хочу»\nМысль ≠ команда. Наблюдай за ней, как за облаком.\nПоможет: Упражнение",
+    "🌊 Сильная эмоция\nЭмоции как волны: поднимаются и спадают.\nПоможет: Протокол тревоги",
+    "⏳ Скука/безделье\nСкука маскируется под тягу. Мозг ищет стимуляцию.\nПоможет: Упражнение",
+    "😰 Тревога/стресс\nТревога говорит «Убеги!». Она пройдёт через 15 минут.\nПоможет: Протокол тревоги",
+    "👥 Компания/окружение\nСоциальное давление — сильный триггер.\nПоможет: Помощь другу",
+    "🤷 Сложно определить\nИногда причины неясны — это нормально.\nПоможет: Упражнение"
 ]
 
 def get_main_keyboard():
@@ -167,13 +179,17 @@ def get_start_keyboard():
     return ReplyKeyboardMarkup([[KeyboardButton("▶ Начать")]], resize_keyboard=True)
 
 def get_heavy_keyboard():
-    """
-    Минималистичное меню для состояния 'тяжело'.
-    """
     return ReplyKeyboardMarkup([
-        [KeyboardButton("🔥 Сделать упражнение")],
-        [KeyboardButton("🩺 Получить помощь")],
-        [KeyboardButton("💔 Срыв")],
+        [KeyboardButton("🔥 Упражнение"), KeyboardButton("🧠 Наука")],
+        [KeyboardButton("💔 Срыв"), KeyboardButton("🤯 Искажения")],
+        [KeyboardButton("🤝 Помощь другу"), KeyboardButton("🧘 Триггеры")],
+        [KeyboardButton("🩺 Протоколы"), KeyboardButton("↩ Назад")]
+    ], resize_keyboard=True)
+
+def get_protocols_keyboard():
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("💤 Сон"), KeyboardButton("😰 Тревога")],
+        [KeyboardButton("🍽 Аппетит"), KeyboardButton("⚡ Паника")],
         [KeyboardButton("↩ Назад")]
     ], resize_keyboard=True)
 
@@ -310,80 +326,15 @@ def get_next_science(user_id):
     save_data(data)
     return SCIENCE_MATERIALS[choice]
 
+def get_stage_for_day(days):
+    if days <= 3: return "🔥 Дни 1-3: Острая фаза. Пик симптомов. Самое тяжёлое."
+    elif days <= 7: return "🌧 Дни 4-7: Подострая фаза. Симптомы -40%. Настроение скачет."
+    elif days <= 14: return "⛅ Дни 8-14: Адаптация. Рецепторы оживают. Сон налаживается."
+    elif days <= 28: return "🌈 Дни 15-28: Восстановление. Мозг чище. Энергия возвращается."
+    return "🚀 Дни 29-90: Стабилизация. Новая норма. Жизнь без зависимости."
+
 def get_protocol(protocol_type):
     return random.choice(PROTOCOLS.get(protocol_type, ["Попробуй упражнение."]))
-
-# --- Основная адаптивная логика выдачи помощи ---
-def get_adaptive_help(user_id, last_user_text=None):
-    """
-    Возвращает одну короткую, полезную подсказку, адаптированную по стадиям и контексту.
-    """
-    try:
-        days = get_days_since_start(user_id)
-    except Exception:
-        days = 0
-
-    # помощь из протоколов (случайный элемент соответствующей категории)
-    # выбираем источник вероятностно
-    choices = []
-
-    # если совсем недавно — больше физиологии
-    if days <= 3:
-        choices += ["protocol"] * 6
-        choices += ["technique"] * 2
-        choices += ["science"] * 1
-    elif days <= 14:
-        choices += ["protocol"] * 4
-        choices += ["distortion"] * 2
-        choices += ["science"] * 2
-        choices += ["technique"] * 2
-    elif days <= 30:
-        choices += ["science"] * 4
-        choices += ["technique"] * 3
-        choices += ["distortion"] * 2
-        choices += ["friend"] * 1
-    else:
-        choices += ["science"] * 3
-        choices += ["technique"] * 3
-        choices += ["friend"] * 2
-        choices += ["distortion"] * 2
-
-    # если в последнем сообщении пользователя слова про паника/страх -> отдаём панический протокол
-    if last_user_text:
-        l = last_user_text.lower()
-        panic_words = ["паник", "страх", "паника", "сильно бо", "тревог", "накрыл"]
-        for pw in panic_words:
-            if pw in l:
-                # вернём протокол паники
-                return "⚡ Паника:\n" + get_protocol("паника")
-
-        # если про аппетит/есть -> аппетитный протокол
-        if "голод" in l or "есть" in l or "аппетит" in l:
-            return "🍽 Аппетит:\n" + get_protocol("аппетит")
-        
-        # если про сон -> протокол сна
-        if "сон" in l or "спать" in l or "бессон" in l:
-            return "💤 Сон:\n" + get_protocol("сон")
-
-    choice = random.choice(choices)
-
-    if choice == "protocol":
-        # выбираем категорию протокола случайно более-менее релевантную
-        proto_key = random.choice(list(PROTOCOLS.keys()))
-        return f"🩺 Протокол ({proto_key}):\n{get_protocol(proto_key)}"
-    elif choice == "technique":
-        tip = get_next_exercise(user_id)
-        return f"🔥 Упражнение:\n{tip}"
-    elif choice == "science":
-        science = get_next_science(user_id)
-        return f"🧠 Наука:\n{science}"
-    elif choice == "distortion":
-        return "🤯 Мысль и факт:\n" + random.choice(COGNITIVE_DISTORTIONS)
-    elif choice == "friend":
-        return "🤝 Совет другу:\n" + random.choice(FRIEND_HELP_ADVICE)
-    else:
-        # fallback
-        return random.choice(HELP_TECHNIQUES)
 
 def reset_streak(user_id):
     data, user = get_user_data(user_id)
@@ -525,10 +476,7 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     except Exception as e:
         logger.error(f"Ошибка в stop_command для {chat_id}: {e}")
 
-async def hold_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '✊ Держусь' - просто отправка кулачков
-    """
+async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
         _, user = get_user_data(chat_id)
@@ -540,17 +488,15 @@ async def hold_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
         current = get_current_time()
         today = get_current_date()
         
-        # Проверяем, новый ли день
         if user.get("last_hold_date") != today.isoformat():
             user["hold_count_today"] = 0
             user["last_hold_date"] = today.isoformat()
         
-        # Проверяем лимит 30 минут между нажатиями
         if user.get("last_hold_time"):
             try:
                 last = datetime.fromisoformat(user["last_hold_time"])
                 diff = (current - last).total_seconds()
-                if diff < 1800:  # 30 минут
+                if diff < 1800:
                     mins = int((1800 - diff + 59) // 60)
                     if mins == 1:
                         await update.message.reply_text("Подожди ещё минуту.", reply_markup=get_main_keyboard())
@@ -561,19 +507,16 @@ async def hold_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             except:
                 pass
         
-        # Проверяем лимит 5 раз в день
         if user.get("hold_count_today", 0) >= 5:
             await update.message.reply_text("Сегодня уже 5 раз.\nЗавтра снова сможешь.", reply_markup=get_main_keyboard())
             return
         
-        # Обновляем данные
         user["last_hold_time"] = current.isoformat()
         user["last_hold_date"] = today.isoformat()
         user["hold_count_today"] = user.get("hold_count_today", 0) + 1
         data[str(chat_id)] = user
         save_data(data)
         
-        # Отправляем ответ пользователю
         await update.message.reply_text(random.choice(HOLD_RESPONSES), reply_markup=get_main_keyboard())
         
         # Отправка кулачков другим пользователям
@@ -590,27 +533,105 @@ async def hold_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.error(f"Ошибка отправки кулачка {uid}: {e}")
         
     except Exception as e:
-        logger.error(f"Ошибка в hold_button для {chat_id}: {e}")
+        logger.error(f"Ошибка в handle_hold для {chat_id}: {e}")
         await update.message.reply_text("Произошла ошибка. Попробуйте снова.", reply_markup=get_main_keyboard())
 
-async def heavy_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '😔 Тяжело' - показывает упрощенное меню
-    """
-    await update.message.reply_text("Понимаю. Хочешь помочь себе прямо сейчас?", reply_markup=get_heavy_keyboard())
+async def handle_heavy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Что нужно?", reply_markup=get_heavy_keyboard())
 
-async def are_you_there(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '👋 Ты тут?'
-    """
-    part1 = random.choice(TU_TUT_FIRST)
-    part2 = random.choice(TU_TUT_SECOND)
-    await update.message.reply_text(f"{part1}\n{part2}", reply_markup=get_main_keyboard())
+async def handle_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    exercise = get_next_exercise(update.effective_chat.id)
+    await update.message.reply_text(exercise, reply_markup=get_heavy_keyboard())
 
-async def days_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '📊 Дни'
-    """
+async def handle_science(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    science = get_next_science(update.effective_chat.id)
+    await update.message.reply_text(science, reply_markup=get_heavy_keyboard())
+
+async def handle_breakdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    breakdown_text = (
+        "Срыв — это часть процесса\n\n"
+        "Факт: 85% людей срываются в первые 30 дней.\n"
+        "Факт: Среднее число попыток до устойчивой ремиссии — 3-5.\n"
+        "Факт: Каждая попытка укрепляет нейронные пути.\n\n"
+        "Это не провал. Это данные для следующей попытки.\n\n"
+        "Что было ближе всего?"
+    )
+    
+    await update.message.reply_text(
+        breakdown_text,
+        reply_markup=ReplyKeyboardMarkup([
+            [KeyboardButton("😔 Усталость/апатия"), KeyboardButton("🌊 Эмоциональный всплеск")],
+            [KeyboardButton("🔄 Автоматическая привычка"), KeyboardButton("👥 Социальное влияние")],
+            [KeyboardButton("🤷 Не понимаю причину")]
+        ], resize_keyboard=True)
+    )
+    return BREAKDOWN_STATE
+
+async def handle_breakdown_response(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    chat_id = update.effective_chat.id
+    
+    try:
+        responses = {
+            "😔 Усталость/апатия": "«Всё равно» — часто говорит об истощении.",
+            "🌊 Эмоциональный всплеск": "Иногда эмоции накрывают с головой. Это информация.",
+            "🔄 Автоматическая привычка": "Мозг на автопилоте. Ты уже вышел из автоматизма.",
+            "👥 Социальное влияние": "Окружение формирует привычки. Новые стратегии.",
+            "🤷 Не понимаю причину": "Не всегда можно понять причину. Главное — ты вернулся."
+        }
+        
+        reset_streak(chat_id)
+        
+        recovery_protocol = (
+            "\n\nПротокол восстановления:\n"
+            "1. 10 глубоких вдохов\n"
+            "2. Стакан воды\n"
+            "3. Скажи: «Начинаю с чистого листа»\n"
+            "4. Жми ▶ Начать когда готов"
+        )
+        
+        await update.message.reply_text(
+            f"{responses.get(text, 'Ты сделал шаг вперёд.')}{recovery_protocol}",
+            reply_markup=get_start_keyboard()
+        )
+        
+        return ConversationHandler.END
+    except Exception as e:
+        logger.error(f"Ошибка в handle_breakdown_response для {chat_id}: {e}")
+        await update.message.reply_text("Произошла ошибка.", reply_markup=get_main_keyboard())
+        return ConversationHandler.END
+
+async def handle_distortions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    distortion = random.choice(COGNITIVE_DISTORTIONS)
+    await update.message.reply_text(distortion, reply_markup=get_heavy_keyboard())
+
+async def handle_friend_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    advice = random.choice(FRIEND_HELP_ADVICE)
+    await update.message.reply_text(advice, reply_markup=get_heavy_keyboard())
+
+async def handle_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    trigger = random.choice(TRIGGER_RESPONSES)
+    await update.message.reply_text(trigger, reply_markup=get_heavy_keyboard())
+
+async def handle_protocols_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Выбери протокол:", reply_markup=get_protocols_keyboard())
+
+async def handle_protocol(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    
+    protocol_map = {
+        "💤 Сон": "сон",
+        "😰 Тревога": "тревога", 
+        "🍽 Аппетит": "аппетит",
+        "⚡ Паника": "паника"
+    }
+    
+    protocol_type = protocol_map.get(text)
+    if protocol_type:
+        protocol = get_protocol(protocol_type)
+        await update.message.reply_text(protocol, reply_markup=get_protocols_keyboard())
+
+async def handle_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
         _, user = get_user_data(chat_id)
@@ -624,116 +645,39 @@ async def days_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg = f"Ты держишься {days_text}."
             if best > days:
                 best_text = format_days_text(best)
-                msg += f"\n\nЛучший стрик был: {best_text}"
+                msg += f"\n\nЛучший стрик: {best_text}"
             elif best > 0 and best == days:
                 msg += f"\n\nЭто твой лучший стрик прямо сейчас"
+        
+        if days > 0:
+            stage = get_stage_for_day(days)
+            msg += f"\n\n{stage}"
         
         await update.message.reply_text(msg, reply_markup=get_main_keyboard())
         if days in MILESTONES:
             await update.message.reply_text(MILESTONES[days], reply_markup=get_main_keyboard())
     except Exception as e:
-        logger.error(f"Ошибка в days_button для {chat_id}: {e}")
+        logger.error(f"Ошибка в handle_days для {chat_id}: {e}")
         await update.message.reply_text("Произошла ошибка.", reply_markup=get_main_keyboard())
 
-async def heavy_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '🔥 Сделать упражнение'
-    """
+async def handle_are_you_here(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     try:
-        exercise = get_next_exercise(chat_id)
-        await update.message.reply_text(f"🔥 Упражнение:\n\n{exercise}", reply_markup=get_heavy_keyboard())
+        await asyncio.sleep(random.randint(2, 6))
+        await update.message.reply_text(random.choice(TU_TUT_FIRST), reply_markup=get_main_keyboard())
+        await asyncio.sleep(random.randint(2, 5))
+        await update.message.reply_text(random.choice(TU_TUT_SECOND), reply_markup=get_main_keyboard())
     except Exception as e:
-        logger.error(f"Ошибка в heavy_exercise для {chat_id}: {e}")
-        await update.message.reply_text("Произошла ошибка. Попробуй снова.", reply_markup=get_heavy_keyboard())
+        logger.error(f"Ошибка в handle_are_you_here для {chat_id}: {e}")
 
-async def heavy_help(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '🩺 Получить помощь' - адаптивная помощь
-    """
-    chat_id = update.effective_chat.id
-    try:
-        last_text = None
-        if update.message and update.message.reply_to_message:
-            last_text = update.message.reply_to_message.text
-        
-        help_text = get_adaptive_help(chat_id, last_user_text=last_text)
-        await update.message.reply_text(help_text, reply_markup=get_heavy_keyboard())
-    except Exception as e:
-        logger.error(f"Ошибка в heavy_help для {chat_id}: {e}")
-        await update.message.reply_text("Произошла ошибка. Попробуй снова.", reply_markup=get_heavy_keyboard())
-
-async def heavy_relapse(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '💔 Срыв' - сброс стрика
-    """
-    chat_id = update.effective_chat.id
-    try:
-        reset_streak(chat_id)
-        await update.message.reply_text(
-            "💔 Срыв — это часть пути, не провал.\n\n" +
-            "Факты:\n" +
-            "- 85% людей срываются в первые 30 дней.\n" +
-            "- Срыв = данные. Важно понять триггер, а не себя казнить.\n\n" +
-            "Быстрый протокол восстановления:\n" +
-            "1) 10 глубоких вдохов\n" +
-            "2) Стакан воды\n" +
-            "3) 5 минут прогулки\n\n" +
-            "Когда будешь готов — нажми ▶ Начать",
-            reply_markup=get_start_keyboard()
-        )
-    except Exception as e:
-        logger.error(f"Ошибка в heavy_relapse для {chat_id}: {e}")
-        await update.message.reply_text("Произошла ошибка.", reply_markup=get_main_keyboard())
-
-async def heavy_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '↩ Назад' из меню тяжело
-    """
-    await update.message.reply_text("Окей. Я рядом.", reply_markup=get_main_keyboard())
-
-async def thanks_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '❤️ Спасибо'
-    """
+async def handle_thank_you(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = "Спасибо тебе, что ты есть. ❤️\n\nЕсли хочешь поддержать:\nСбер 2202 2084 3481 5313\n\nЛюбая сумма = ещё одному человеку поможем.\n\nГлавное — держись."
     await update.message.reply_text(text, reply_markup=get_main_keyboard())
 
-async def pause_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '⏸ Помолчи' (пауза)
-    """
-    chat_id = update.effective_chat.id
-    try:
-        data, user = get_user_data(chat_id)
-        user["active"] = False
-        data[str(chat_id)] = user
-        save_data(data)
-
-        # Останавливаем задания
-        for prefix in ["morning", "evening", "night", "cleanup"]:
-            for job in context.application.job_queue.jobs():
-                if job.name == f"{prefix}_{chat_id}":
-                    job.schedule_removal()
-
-        await update.message.reply_text(
-            "Окей. Я помолчу.\nКогда захочешь — нажми ▶ Начать",
-            reply_markup=get_start_keyboard()
-        )
-    except Exception as e:
-        logger.error(f"Ошибка в pause_button для {chat_id}: {e}")
-        await update.message.reply_text("Произошла ошибка.", reply_markup=get_main_keyboard())
-
-async def resume(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик кнопки '▶ Начать' (возобновление после паузы)
-    """
-    return await start_command(update, context)
+async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Окей", reply_markup=get_main_keyboard())
 
 async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """
-    Обработчик текстовых сообщений
-    """
     if not update.message or not update.message.text:
         return
     
@@ -753,15 +697,12 @@ async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE
             return
         
         if text == "⏸ Помолчи":
-            await pause_button(update, context)
+            await stop_command(update, context)
             return
     except Exception as e:
         logger.error(f"Ошибка в handle_text_message для {chat_id}: {e}")
 
 async def restore_jobs_on_startup(application):
-    """
-    Восстановление заданий при перезапуске бота
-    """
     active = get_active_users()
     logger.info(f"Восстанавливаем задания для {len(active)} активных пользователей")
     for user_id in active:
@@ -771,38 +712,43 @@ async def restore_jobs_on_startup(application):
             logger.error(f"Ошибка восстановления заданий для {user_id}: {e}")
 
 def main():
-    """
-    Основная функция запуска бота
-    """
-    app = Application.builder().token(TOKEN).build()
-
-    # Команды
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("stop", stop_command))
+    application = Application.builder().token(TOKEN).build()
     
-    # Главное меню
-    app.add_handler(MessageHandler(filters.Regex("^✊ Держусь$"), hold_button))
-    app.add_handler(MessageHandler(filters.Regex("^😔 Тяжело$"), heavy_button))
-    app.add_handler(MessageHandler(filters.Regex("^👋 Ты тут\\?$"), are_you_there))
-    app.add_handler(MessageHandler(filters.Regex("^📊 Дни$"), days_button))
-    app.add_handler(MessageHandler(filters.Regex("^❤️ Спасибо$"), thanks_button))
-    app.add_handler(MessageHandler(filters.Regex("^⏸ Помолчи$"), pause_button))
-    app.add_handler(MessageHandler(filters.Regex("^▶ Начать$"), resume))
-
-    # Меню "Тяжело"
-    app.add_handler(MessageHandler(filters.Regex("^🔥 Сделать упражнение$"), heavy_exercise))
-    app.add_handler(MessageHandler(filters.Regex("^🩺 Получить помощь$"), heavy_help))
-    app.add_handler(MessageHandler(filters.Regex("^💔 Срыв$"), heavy_relapse))
-    app.add_handler(MessageHandler(filters.Regex("^↩ Назад$"), heavy_back))
-
-    # Общий обработчик текста
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+    breakdown_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex("^💔 Срыв$"), handle_breakdown)],
+        states={BREAKDOWN_STATE: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_breakdown_response)]},
+        fallbacks=[],
+        conversation_timeout=300
+    )
     
-    # Восстановление заданий при старте
-    app.post_init = restore_jobs_on_startup
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("stop", stop_command))
+    application.add_handler(breakdown_conv)
+    
+    application.add_handler(MessageHandler(filters.Regex("^✊ Держусь$"), handle_hold))
+    application.add_handler(MessageHandler(filters.Regex("^😔 Тяжело$"), handle_heavy))
+    application.add_handler(MessageHandler(filters.Regex("^🔥 Упражнение$"), handle_exercise))
+    application.add_handler(MessageHandler(filters.Regex("^🧠 Наука$"), handle_science))
+    application.add_handler(MessageHandler(filters.Regex("^📊 Дни$"), handle_days))
+    application.add_handler(MessageHandler(filters.Regex("^👋 Ты тут\?$"), handle_are_you_here))
+    application.add_handler(MessageHandler(filters.Regex("^❤️ Спасибо$"), handle_thank_you))
+    application.add_handler(MessageHandler(filters.Regex("^↩ Назад$"), handle_back))
+    application.add_handler(MessageHandler(filters.Regex("^🤯 Искажения$"), handle_distortions))
+    application.add_handler(MessageHandler(filters.Regex("^🤝 Помощь другу$"), handle_friend_help))
+    application.add_handler(MessageHandler(filters.Regex("^🧘 Триггеры$"), handle_triggers))
+    application.add_handler(MessageHandler(filters.Regex("^🩺 Протоколы$"), handle_protocols_menu))
+    
+    application.add_handler(MessageHandler(filters.Regex("^💤 Сон$"), handle_protocol))
+    application.add_handler(MessageHandler(filters.Regex("^😰 Тревога$"), handle_protocol))
+    application.add_handler(MessageHandler(filters.Regex("^🍽 Аппетит$"), handle_protocol))
+    application.add_handler(MessageHandler(filters.Regex("^⚡ Паника$"), handle_protocol))
+    
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+    
+    application.post_init = restore_jobs_on_startup
     
     logger.info("Бот запущен")
-    app.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
+    application.run_polling(allowed_updates=Update.ALL_TYPES, drop_pending_updates=True)
 
 if __name__ == "__main__":
     main()
