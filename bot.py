@@ -4,7 +4,6 @@ import json
 import os
 import asyncio
 from datetime import datetime, time, date
-from functools import partial
 from filelock import FileLock
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
@@ -99,6 +98,7 @@ HELP_TECHNIQUES = [
 ]
 
 HELP_ADVICE_BY_DAY = [
+    "Только начинаешь. Первые 72 часа самые тяжёлые — мозг требует дофамин. Это ломка, она пройдёт.",
     "Дни 1–3: острая нехватка дофамина. Мозг паникует и требует вернуть привычку. Это ломка — она пройдёт через 72 часа. Пик на 3-й день.",
     "Дни 4–7: симптомы идут на спад. Настроение скачет, но уже появляются окна ясности. Сон всё ещё хреновый — это нормально.",
     "Дни 8–14: рецепторы оживают. Простые вещи начинают приносить радость. Сон налаживается. Ты на половине пути.",
@@ -150,7 +150,6 @@ def load_data():
     with FileLock(LOCK_FILE):
         if not os.path.exists(DATA_FILE):
             return {}
-        
         try:
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 data = json.load(f)
@@ -158,12 +157,12 @@ def load_data():
                     if "start_date" in user and user["start_date"]:
                         try:
                             date.fromisoformat(user["start_date"])
-                        except (ValueError, TypeError):
+                        except:
                             user["start_date"] = None
                     if "last_hold_time" in user and user["last_hold_time"]:
                         try:
                             datetime.fromisoformat(user["last_hold_time"])
-                        except (ValueError, TypeError):
+                        except:
                             user["last_hold_time"] = None
                     user.setdefault("active", False)
                     user.setdefault("best_streak", 0)
@@ -172,7 +171,7 @@ def load_data():
                     user.setdefault("used_tips", [])
                     user.setdefault("message_ids", [])
                 return data
-        except (json.JSONDecodeError, ValueError):
+        except:
             if os.path.exists(DATA_FILE):
                 backup = f"{DATA_FILE}.backup.{datetime.now().strftime('%Y%m%d_%H%M%S')}"
                 os.rename(DATA_FILE, backup)
@@ -209,7 +208,7 @@ def get_days_since_start(user_id):
     try:
         start = date.fromisoformat(user["start_date"])
         return (get_current_date() - start).days
-    except (ValueError, TypeError):
+    except:
         return 0
 
 def get_active_users():
@@ -238,14 +237,14 @@ def get_next_exercise(user_id):
     return HELP_TECHNIQUES[choice]
 
 def get_advice_for_day(days):
-    if days < 1: return "Только начинаешь. Первые шаги самые важные."
-    elif days <= 3: return HELP_ADVICE_BY_DAY[0]
-    elif days <= 7: return HELP_ADVICE_BY_DAY[1]
-    elif days <= 14: return HELP_ADVICE_BY_DAY[2]
-    elif days <= 28: return HELP_ADVICE_BY_DAY[3]
-    elif days <= 42: return HELP_ADVICE_BY_DAY[4]
-    elif days <= 90: return HELP_ADVICE_BY_DAY[5]
-    return HELP_ADVICE_BY_DAY[6]
+    if days == 0: return HELP_ADVICE_BY_DAY[0]
+    elif days <= 3: return HELP_ADVICE_BY_DAY[1]
+    elif days <= 7: return HELP_ADVICE_BY_DAY[2]
+    elif days <= 14: return HELP_ADVICE_BY_DAY[3]
+    elif days <= 28: return HELP_ADVICE_BY_DAY[4]
+    elif days <= 42: return HELP_ADVICE_BY_DAY[5]
+    elif days <= 90: return HELP_ADVICE_BY_DAY[6]
+    return HELP_ADVICE_BY_DAY[7]
 
 def reset_streak(user_id):
     data, user = get_user_data(user_id)
@@ -285,12 +284,14 @@ async def midnight_cleanup(context):
     data[str(chat_id)] = user
     save_data(data)
     
-    for msg_id in msg_ids[:50]:
-        try:
-            await context.bot.delete_message(chat_id, msg_id)
-            await asyncio.sleep(0.3)
-        except:
-            pass
+    for i in range(0, min(50, len(msg_ids)), 5):
+        batch = msg_ids[i:i+5]
+        for msg_id in batch:
+            try:
+                await context.bot.delete_message(chat_id, msg_id)
+            except:
+                pass
+        await asyncio.sleep(0.5)
 
 def schedule_user_jobs(chat_id, job_queue):
     for prefix in ["morning", "evening", "night", "cleanup"]:
@@ -332,29 +333,26 @@ async def start_command(update, context):
     chat_id = update.effective_chat.id
     data, user = get_user_data(chat_id)
     
-    if user.get("start_date") and user.get("active"):
-        await send_message(context.bot, chat_id, "Ты уже начал. Продолжай держаться.", save=False)
-        return
+    if not user.get("active", False):
+        user["active"] = True
+        user["start_date"] = get_current_date().isoformat()
+        user["used_tips"] = []
+        user["hold_count_today"] = 0
+        user["last_hold_date"] = None
+        user["last_hold_time"] = None
+        data[str(chat_id)] = user
+        save_data(data)
+        
+        schedule_user_jobs(chat_id, context.job_queue)
     
-    user["active"] = True
-    user["start_date"] = get_current_date().isoformat()
-    user["used_tips"] = []
-    user["hold_count_today"] = 0
-    user["last_hold_date"] = None
-    user["last_hold_time"] = None
-    data[str(chat_id)] = user
-    save_data(data)
+    days = get_days_since_start(chat_id)
+    if days == 0:
+        welcome = "Привет, брат. Только начинаешь — самое трудное впереди."
+    else:
+        welcome = f"Привет, брат. Ты держишься {format_days_text(days)}. Я с тобой."
     
-    schedule_user_jobs(chat_id, context.job_queue)
+    welcome += "\n\nЯ буду писать три раза в день.\nКогда тяжело — жми ✊ Держусь\nВсе получат пуш и узнают, что ты ещё здесь.\nМожешь жать до 5 раз в сутки.\n\nДержись. Я рядом."
     
-    welcome = (
-        "Привет, брат.\n\n"
-        "Я буду писать три раза в день — просто напомню: сегодня не надо.\n\n"
-        "Когда тяжело — жми ✊ Держусь\n"
-        "Все получат пуш и узнают, что ты ещё здесь.\n"
-        "Можешь жать до 5 раз в сутки.\n\n"
-        "Держись. Я рядом."
-    )
     await send_message(context.bot, chat_id, welcome, save=False)
 
 async def stop_command(update, context):
@@ -391,7 +389,7 @@ async def handle_hold(update, context):
             last = datetime.fromisoformat(user["last_hold_time"])
             diff = (current - last).total_seconds()
             if diff < 1800:
-                mins = int((1800 - diff) / 60) + 1
+                mins = int((1800 - diff + 59) // 60)
                 if mins == 1:
                     await update.message.reply_text("Погоди ещё 1 минуту, брат.", reply_markup=get_main_keyboard())
                 elif mins in [2, 3, 4]:
@@ -415,11 +413,14 @@ async def handle_hold(update, context):
     await update.message.reply_text(random.choice(HOLD_RESPONSES), reply_markup=get_main_keyboard())
     
     active = get_active_users()
+    sent = 0
     for uid in active:
-        if uid != chat_id:
+        if uid != chat_id and sent < 20:
             try:
                 await context.bot.send_message(uid, "✊")
-                await asyncio.sleep(0.2)
+                sent += 1
+                if sent % 5 == 0:
+                    await asyncio.sleep(0.5)
             except:
                 pass
     
@@ -512,10 +513,10 @@ async def handle_days(update, context):
     best = user.get("best_streak", 0)
     
     if days == 0:
-        msg = "Только начал. Первый день — самый тяжёлый."
+        msg = "Ты только начинаешь. Первый день — самый тяжёлый. Ты уже герой."
     else:
         days_text = format_days_text(days)
-        msg = f"Ты держишься {days_text}"
+        msg = f"Ты держишься {days_text}."
         if best > days:
             best_text = format_days_text(best)
             msg += f"\n\nЛучший стрик был: {best_text}"
@@ -549,7 +550,9 @@ async def handle_text_message(update, context):
     
     _, user = get_user_data(chat_id)
     
-    if not user.get("active", False) and text != "▶ Начать":
+    if not user.get("active", False):
+        if text == "▶ Начать":
+            await start_command(update, context)
         return
     
     if text == "▶ Начать":
@@ -559,9 +562,6 @@ async def handle_text_message(update, context):
     if text == "⏸ Помолчи":
         await stop_command(update, context)
         return
-    
-    if len(text) > 8 and text not in ["🔥 Упражнение", "🧠 Что происходит с телом", "🔄 Другое упражнение", "↩ Назад"]:
-        await send_message(context.bot, chat_id, "Понимаю, брат. Тяжко.\nЖми ✊ Держусь или 😔 Тяжело.", save=False)
 
 async def restore_jobs_on_startup(application):
     active = get_active_users()
@@ -604,7 +604,7 @@ def main():
     
     application.post_init = restore_jobs_on_startup
     
-    logger.info("БОТ ЗАПУЩЕН")
+    logger.info("=== БОТ ПОМОЩНИК v1.0 ЗАПУЩЕН ===")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
 
 if __name__ == "__main__":
