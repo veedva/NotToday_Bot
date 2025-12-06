@@ -107,7 +107,7 @@ HELP_TECHNIQUES = [
     "🥜 Съешь горсть орехов или сыра. Белок и жиры стабилизируют сахар в крови.",
     "🎾 Сожми теннисный мячик до боли. 10 раз. Физический выброс адреналина через руки.",
     "💪 Поза силы 2 минуты: ноги широко, руки в боки, грудь вперёд.",
-    "🤔 HALT: голоден? злой? одинок? устал? Исправь хоть одно.",
+    "🤔 HALT: голоден? злой? одинок? устал? Исправь хотя бы одно.",
     "🌊 Urge Surfing: представь тягу как волну. Не борись — наблюдай со стороны.",
     "💬 Напиши любому: «Тяжко, брат». Стыдно? Именно поэтому это работает.",
     "💪 20 отжиманий до отказа. Пока тело в шоке — мозг забывает про дофаминовый голод."
@@ -507,7 +507,7 @@ def get_start_keyboard():
 
 def get_heavy_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("🔥 Сделать упражнение"), KeyboardButton("🧠 Информация")],
+        [KeyboardButton("💪 Упражнения"), KeyboardButton("🧠 Информация")],
         [KeyboardButton("💔 Срыв"), KeyboardButton("↩ Назад")]
     ], resize_keyboard=True)
 
@@ -641,24 +641,18 @@ def get_next_exercise(user_id):
     return HELP_TECHNIQUES[choice]
 
 def get_next_stage(user_id):
-    """Возвращает следующую стадию по порядку"""
     user = get_user(user_id)
     last_index = user.get("last_stage_index", 0)
     
-    # Показываем стадию по текущему индексу
     stage_text = RECOVERY_STAGES[last_index]
-    
-    # Увеличиваем индекс для следующего раза
     next_index = (last_index + 1) % len(RECOVERY_STAGES)
     
-    # Показываем подсказку о следующей стадии
     if next_index == 0:
         stage_text += f"\n\n✨ Это была последняя стадия. Нажми ещё раз, чтобы начать сначала."
     else:
         stage_num = next_index + 1
         stage_text += f"\n\n📌 Стадия {stage_num}/{len(RECOVERY_STAGES)}. Нажми ещё раз для следующей."
     
-    # Сохраняем новый индекс
     asyncio.create_task(save_user(user_id, {"last_stage_index": next_index}))
     
     return stage_text
@@ -713,17 +707,14 @@ def remove_user_jobs(chat_id, job_queue):
     return removed
 
 def schedule_jobs(chat_id, job_queue):
-    # Сначала проверяем, есть ли уже задачи
     existing_jobs = []
     for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}"]:
         if job_queue.get_jobs_by_name(name):
             existing_jobs.extend(job_queue.get_jobs_by_name(name))
     
-    # Удаляем только если есть задачи
     if existing_jobs:
         remove_user_jobs(chat_id, job_queue)
     
-    # Добавляем новые задачи
     job_queue.run_daily(
         send_morning,
         time(9, 0, tzinfo=MOSCOW_TZ),
@@ -788,7 +779,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = get_user(chat_id)
     
-    # Проверяем, был ли пользователь уже активен
     was_active = user.get("active", False)
     
     await save_user(chat_id, {
@@ -804,7 +794,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "last_hold_time": None
     })
     
-    # Создаем задачи только если пользователь не был активен
     if not was_active:
         schedule_jobs(chat_id, context.application.job_queue)
         logger.info(f"Созданы новые задачи для пользователя {chat_id}")
@@ -866,24 +855,18 @@ async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "last_hold_date": today_str
         })
     
-    # Улучшенная обработка времени
     if user.get("last_hold_time"):
         try:
             last_time_str = user["last_hold_time"]
             
-            # Пытаемся распарсить разными способами
             try:
                 if 'T' in last_time_str:
-                    # Пробуем с таймзоной
                     last_time = datetime.fromisoformat(last_time_str)
                 else:
-                    # Старый формат без таймзоны
                     last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=MOSCOW_TZ)
             except ValueError:
-                # Если не получается - используем текущее время
-                last_time = current_time - timedelta(minutes=31)  # Ставим старее таймаута
+                last_time = current_time - timedelta(minutes=31)
             
-            # Убедимся, что время имеет таймзону
             if last_time.tzinfo is None:
                 last_time = last_time.replace(tzinfo=MOSCOW_TZ)
             
@@ -897,7 +880,6 @@ async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
                 return
         except Exception as e:
             logger.error(f"Ошибка проверки таймаута: {e}, last_time_str: {last_time_str}")
-            # При ошибке пропускаем проверку таймаута
     
     if user.get("hold_count_today", 0) >= 5:
         await update.message.reply_text(
@@ -1022,11 +1004,9 @@ async def restore_jobs(application):
     active = get_active_users()
     logger.info(f"Восстанавливаем задания для {len(active)} пользователей")
     
-    # Получаем все текущие задачи
     existing_jobs = list(application.job_queue.jobs())
     
     for user_id in active:
-        # Проверяем, есть ли уже задачи для этого пользователя
         user_has_jobs = False
         for job in existing_jobs:
             if (hasattr(job, 'name') and str(user_id) in job.name) or \
@@ -1034,7 +1014,6 @@ async def restore_jobs(application):
                 user_has_jobs = True
                 break
         
-        # Создаем задачи только если их нет
         if not user_has_jobs:
             schedule_jobs(user_id, application.job_queue)
             logger.info(f"Восстановлены задачи для пользователя {user_id}")
@@ -1052,7 +1031,7 @@ def main():
     application.add_handler(MessageHandler(filters.Regex("^❤️ Спасибо$"), handle_thank_you))
     application.add_handler(MessageHandler(filters.Regex("^⏸ Помолчи$"), stop_command))
     
-    application.add_handler(MessageHandler(filters.Regex("^🔥 Сделать упражнение$"), handle_exercise))
+    application.add_handler(MessageHandler(filters.Regex("^💪 Упражнения$"), handle_exercise))
     application.add_handler(MessageHandler(filters.Regex("^🧠 Информация$"), handle_info_menu))
     application.add_handler(MessageHandler(filters.Regex("^💔 Срыв$"), handle_breakdown))
     
@@ -1062,9 +1041,7 @@ def main():
     application.add_handler(MessageHandler(filters.Regex("^🔬 Факты$"), handle_facts))
     
     application.add_handler(MessageHandler(filters.Regex("^↩ Назад$"), handle_back))
-    
     application.add_handler(MessageHandler(filters.Regex("^▶ Начать$"), handle_text))
-    
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
     
     application.post_init = restore_jobs
