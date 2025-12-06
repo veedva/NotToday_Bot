@@ -3,7 +3,7 @@ import random
 import json
 import os
 import asyncio
-from datetime import datetime, time, date
+from datetime import datetime, time, date, timedelta
 from filelock import FileLock
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
@@ -114,15 +114,51 @@ HELP_TECHNIQUES = [
 ]
 
 RECOVERY_STAGES = [
-    "📅 ДНИ 1-3: ОСТРАЯ ФАЗА\n\nПик физических симптомов. Рецепторы требуют привычный дофамин.\n\nЧто происходит:\n• Температура, потливость\n• Тревога 8-10/10\n• Раздражительность\n• Бессонница\n• Сильная тяга каждые 1-2 часа\n\nЭто самое тяжёлое время. Держись.",
-    
-    "📅 ДНИ 4-7: ПОДОСТРАЯ ФАЗА\n\nСимптомы снижаются на 40%. Настроение скачет — это нормально.\n\nЧто происходит:\n• Физические симптомы слабеют\n• Появляются окна ясности\n• Энергия всё ещё низкая\n• Тяга приходит реже\n• Эмоции нестабильны\n\nМозг учится жить по-новому.",
-    
-    "📅 ДНИ 8-14: АДАПТАЦИЯ\n\nРецепторы оживают. CB1-рецепторы начинают восстанавливаться.\n\nЧто происходит:\n• Сон налаживается\n• Аппетит возвращается\n• Тяга слабеет\n• Появляется естественная радость\n• Голова становится яснее\n\nТы уже чувствуешь разницу.",
-    
-    "📅 ДНИ 15-28: ВОССТАНОВЛЕНИЕ\n\nМозг работает чище. Дофаминовая система приходит в норму.\n\nЧто происходит:\n• Энергия стабильная\n• Эмоции под контролем\n• Радость от простых вещей\n• Когнитивные функции +25%\n• Тяга редкая и слабая\n\nТы другой человек.",
-    
-    "📅 ДНИ 29-90: СТАБИЛИЗАЦИЯ\n\nПолная перезагрузка нейронных связей. Новая норма жизни.\n\nЧто происходит:\n• CB1-рецепторы восстановлены\n• Дофамин производится естественно\n• Жизнь без зависимости\n• Тяга почти не появляется\n• Ты свободен\n\nЭто твоя новая реальность."
+    {
+        "min_days": 0,
+        "max_days": 3,
+        "days": "1-3",
+        "title": "ОСТРАЯ ФАЗА",
+        "description": "Пик физических симптомов. Рецепторы требуют привычный дофамин.",
+        "symptoms": "• Температура, потливость\n• Тревога 8-10/10\n• Раздражительность\n• Бессонница\n• Сильная тяга каждые 1-2 часа",
+        "advice": "Это самое тяжёлое время. Держись."
+    },
+    {
+        "min_days": 4,
+        "max_days": 7,
+        "days": "4-7", 
+        "title": "ПОДОСТРАЯ ФАЗА",
+        "description": "Симптомы снижаются на 40%. Настроение скачет — это нормально.",
+        "symptoms": "• Физические симптомы слабеют\n• Появляются окна ясности\n• Энергия всё ещё низкая\n• Тяга приходит реже\n• Эмоции нестабильны",
+        "advice": "Мозг учится жить по-новому."
+    },
+    {
+        "min_days": 8,
+        "max_days": 14,
+        "days": "8-14",
+        "title": "АДАПТАЦИЯ", 
+        "description": "Рецепторы оживают. CB1-рецепторы начинают восстанавливаться.",
+        "symptoms": "• Сон налаживается\n• Аппетит возвращается\n• Тяга слабеет\n• Появляется естественная радость\n• Голова становится яснее",
+        "advice": "Ты уже чувствуешь разницу."
+    },
+    {
+        "min_days": 15,
+        "max_days": 28,
+        "days": "15-28",
+        "title": "ВОССТАНОВЛЕНИЕ",
+        "description": "Мозг работает чище. Дофаминовая система приходит в норму.",
+        "symptoms": "• Энергия стабильная\n• Эмоции под контролем\n• Радость от простых вещей\n• Когнитивные функции +25%\n• Тяга редкая и слабая", 
+        "advice": "Ты другой человек."
+    },
+    {
+        "min_days": 29,
+        "max_days": 90,
+        "days": "29-90",
+        "title": "СТАБИЛИЗАЦИЯ",
+        "description": "Полная перезагрузка нейронных связей. Новая норма жизни.",
+        "symptoms": "• CB1-рецепторы восстановлены\n• Дофамин производится естественно\n• Жизнь без зависимости\n• Тяга почти не появляется\n• Ты свободен",
+        "advice": "Это твоя новая реальность."
+    }
 ]
 
 COGNITIVE_DISTORTIONS = [
@@ -136,11 +172,7 @@ COGNITIVE_DISTORTIONS = [
     
     "🤯 «У ДРУГИХ ПОЛУЧАЕТСЯ»\n\nОшибка мышления: сравнение.\n\nФакт: У всех свои сроки.\nТы видишь только результат, а не 5 попыток до него. Не 6 месяцев ломки. Не срывы.\n\nКаждый путь уникален.\n\nСравнивай себя только с собой вчерашним.",
     
-    "🤯 «ОДИН РАЗ НЕ СЧИТАЕТСЯ»\n\nОшибка мышления: минимизация.\n\nФакт: Каждый «один раз» считается.\nМозг не делит на «разы». Дофаминовый всплеск = укрепление старой нейронной связи.\n\nОдин раз = откат назад на неделю.\n\nЕсли «не считается» — зачем тогда хочется?",
-    
-    "🤯 «Я НЕ ВЫДЕРЖУ»\n\nОшибка мышления: предсказание будущего.\n\nФакт: Тяга проходит за 3-15 минут.\nТы выдерживаешь уже сейчас, читая это. Ты сильнее, чем думаешь.\n\nС каждым разом тяга становится слабее и реже.\n\nНе пытайся выдержать «навсегда». Выдержи «сейчас».",
-    
-    "🤯 «ЗАЧЕМ ВООБЩЕ БОРОТЬСЯ?»\n\nОшибка мышления: обесценивание.\n\nФакт: За 90 дней мозг полностью перестроится.\nТы будешь мыслить яснее, спать глубже, чувствовать ярче.\n\nЭто не борьба «против» — это движение «к» лучшей версии себя.\n\nСтоит того."
+    "🤯 «ОДИН РАЗ НЕ СЧИТАЕТСЯ»\n\nОшибка мышления: минимизация.\n\nФакт: Каждый «один раз» считается.\nМозг не делит на «разы». Дофаминовый всплеск = укрепление старой нейронной связи.\n\nОдин раз = откат назад на неделю.\n\nЕсли «не считается» — зачем тогда хочется?"
 ]
 
 TRIGGERS_INFO = [
@@ -152,9 +184,7 @@ TRIGGERS_INFO = [
     
     "⚠️ СТРЕСС / ТРЕВОГА\n\nТревога говорит: «Убеги!» Зависимость отвечает: «Знаю как».\n\nЧто делать:\n• Тревога пройдёт через 15-20 минут\n• Дыхание 4-7-8: вдох 4, задержка 7, выдох 8\n• Холодная вода на лицо\n• Скажи вслух: «Я в безопасности сейчас»\n\nТревога временная. Срыв — постоянный.",
     
-    "⚠️ КОМПАНИЯ / ОКРУЖЕНИЕ\n\nСамый сильный триггер. Социальное давление + привычная обстановка.\n\nЧто делать:\n• Избегай первые 30 дней\n• Если нельзя избежать — заранее репетируй отказ\n• «Завязал», «Не хочу», «Мне нельзя»\n• Выходи из ситуации физически\n\nТвоя трезвость важнее чужого мнения.",
-    
-    "⚠️ МЕСТО / ВРЕМЯ\n\nМозг связал место или время с употреблением. Автоматический триггер.\n\nЧто делать:\n• Измени маршрут домой\n• Убери все атрибуты\n• Новые ритуалы на старое время\n• Первые недели — избегай эти места\n\nРазорви автоматическую связь."
+    "⚠️ КОМПАНИЯ / ОКРУЖЕНИЕ\n\nСамый сильный триггер. Социальное давление + привычная обстановка.\n\nЧто делать:\n• Избегай первые 30 дней\n• Если нельзя избежать — заранее репетируй отказ\n• «Завязал», «Не хочу», «Мне нельзя»\n• Выходи из ситуации физически\n\nТвоя трезвость важнее чужого мнения."
 ]
 
 SCIENCE_FACTS = [
@@ -164,10 +194,6 @@ SCIENCE_FACTS = [
     
     "🔬 СОН И МЕЛАТОНИН\n\nТГК нарушает REM-фазу сна. Мелатонин подавляется.\n\nВосстановление:\n• Первая неделя: бессонница, кошмары\n• 10-14 дней: сон становится глубже\n• 21 день: REM-фаза восстанавливается\n• Месяц: сон качественный\n\nГлубокий сон = восстановление мозга.",
     
-    "🔬 ПАМЯТЬ И ГИППОКАМП\n\nТГК повреждает гиппокамп — центр памяти и обучения.\n\nВосстановление:\n• Две недели: краткосрочная память улучшается\n• Месяц: когнитивные функции +25%\n• Три месяца: почти полное восстановление\n• 6-12 месяцев: мозг работает как новый\n\nТы станешь умнее. Буквально.",
-    
-    "🔬 МОТИВАЦИЯ И ВОЛЯ\n\nПрефронтальная кора — центр воли. ТГК её угнетает.\n\nВосстановление:\n• Первая неделя: ноль мотивации\n• Две недели: появляются всплески энергии\n• Месяц: воля возвращается\n• Три месяца: стабильная мотивация\n\nАпатия временная. Это не ты — это химия.",
-    
     "🔬 СТАТИСТИКА СРЫВОВ\n\nРеальные цифры:\n• 85% срываются в первые 30 дней\n• 60% — в первую неделю\n• Среднее число попыток: 3-5 раз\n• После 90 дней вероятность срыва падает до 15%\n\nЕсли сорвался — ты в большинстве. Главное — вернуться."
 ]
 
@@ -176,8 +202,8 @@ _data_lock = asyncio.Lock()
 
 def get_main_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
-        [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
+        [KeyboardButton("✊ Держусь"), KeyboardButton("📊 Дни")],
+        [KeyboardButton("😔 Тяжело"), KeyboardButton("👋 Ты тут?")],
         [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
     ], resize_keyboard=True)
 
@@ -186,18 +212,14 @@ def get_start_keyboard():
 
 def get_heavy_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("🔥 Сделать упражнение")],
-        [KeyboardButton("🧠 Получить информацию")],
-        [KeyboardButton("💔 Срыв")],
-        [KeyboardButton("↩ Назад")]
+        [KeyboardButton("🔥 Сделать упражнение"), KeyboardButton("🧠 Информация")],
+        [KeyboardButton("💔 Срыв"), KeyboardButton("↩ Назад")]
     ], resize_keyboard=True)
 
 def get_info_keyboard():
     return ReplyKeyboardMarkup([
-        [KeyboardButton("📅 Стадии восстановления")],
-        [KeyboardButton("⚠️ Триггеры")],
-        [KeyboardButton("🤯 Искажения мышления")],
-        [KeyboardButton("🔬 Научные факты")],
+        [KeyboardButton("📅 Стадии"), KeyboardButton("⚠️ Триггеры")],
+        [KeyboardButton("🤯 Искажения"), KeyboardButton("🔬 Факты")],
         [KeyboardButton("↩ Назад")]
     ], resize_keyboard=True)
 
@@ -250,8 +272,8 @@ def get_user(user_id):
             "hold_count_today": 0,
             "last_hold_date": None,
             "last_hold_time": None,
+            "last_stage_shown": -1,  # -1 значит не показывали ничего
             "used_tips": [],
-            "used_stages": [],
             "used_triggers": [],
             "used_distortions": [],
             "used_facts": []
@@ -289,7 +311,8 @@ def get_days_since_start(user_id):
     try:
         start = date.fromisoformat(user["start_date"])
         current = get_current_date()
-        return (current - start).days
+        days = (current - start).days
+        return max(days, 0)
     except Exception as e:
         logger.error(f"Ошибка расчёта дней для {user_id}: {e}")
         return 0
@@ -302,6 +325,61 @@ def format_days(days):
     if days % 10 in [2, 3, 4]:
         return f"{days} дня"
     return f"{days} дней"
+
+def get_next_exercise(user_id):
+    user = get_user(user_id)
+    used = user.get("used_tips", [])
+    
+    if len(used) >= len(HELP_TECHNIQUES):
+        used = []
+    
+    available = [i for i in range(len(HELP_TECHNIQUES)) if i not in used]
+    if not available:
+        available = list(range(len(HELP_TECHNIQUES)))
+        used = []
+    
+    choice = random.choice(available)
+    used.append(choice)
+    
+    asyncio.create_task(save_user(user_id, {"used_tips": used}))
+    
+    return HELP_TECHNIQUES[choice]
+
+def get_next_stage(user_id):
+    """Возвращает следующую стадию для показа, проверяя прочитанные"""
+    user = get_user(user_id)
+    days = get_days_since_start(user_id)
+    last_shown = user.get("last_stage_shown", -1)
+    
+    # Определяем максимальную доступную стадию по дням
+    max_available_stage = 0
+    for i, stage in enumerate(RECOVERY_STAGES):
+        if days >= stage["min_days"]:
+            max_available_stage = i
+    
+    # Если все доступные стадии уже показаны - показываем текущую
+    if last_shown >= max_available_stage:
+        stage_to_show = max_available_stage
+    else:
+        # Показываем следующую непрочитанную
+        stage_to_show = last_shown + 1
+    
+    stage = RECOVERY_STAGES[stage_to_show]
+    stage_text = f"📅 ДНИ {stage['days']}: {stage['title']}\n\n{stage['description']}\n\nЧто происходит:\n{stage['symptoms']}\n\n{stage['advice']}"
+    
+    # Сохраняем как прочитанную только если это новая стадия
+    if stage_to_show > last_shown:
+        asyncio.create_task(save_user(user_id, {"last_stage_shown": stage_to_show}))
+    
+    # Информация о прогрессе
+    if stage_to_show < len(RECOVERY_STAGES) - 1:
+        next_stage = RECOVERY_STAGES[stage_to_show + 1]
+        if max_available_stage >= stage_to_show + 1:
+            stage_text += f"\n\n✅ Следующая стадия уже доступна!"
+        else:
+            stage_text += f"\n\nСледующая стадия откроется на {next_stage['min_days']} день."
+    
+    return stage_text, stage_to_show, max_available_stage
 
 def get_next_item(user_id, items_list, used_key):
     user = get_user(user_id)
@@ -331,11 +409,11 @@ async def reset_streak(user_id):
     
     await save_user(user_id, {
         "start_date": get_current_date().isoformat(),
+        "last_stage_shown": -1,
         "hold_count_today": 0,
         "last_hold_date": None,
         "last_hold_time": None,
         "used_tips": [],
-        "used_stages": [],
         "used_triggers": [],
         "used_distortions": [],
         "used_facts": []
@@ -353,8 +431,17 @@ def remove_user_jobs(chat_id, job_queue):
     return removed
 
 def schedule_jobs(chat_id, job_queue):
-    remove_user_jobs(chat_id, job_queue)
+    # Сначала проверяем, есть ли уже задачи
+    existing_jobs = []
+    for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}"]:
+        if job_queue.get_jobs_by_name(name):
+            existing_jobs.extend(job_queue.get_jobs_by_name(name))
     
+    # Удаляем только если есть задачи
+    if existing_jobs:
+        remove_user_jobs(chat_id, job_queue)
+    
+    # Добавляем новые задачи
     job_queue.run_daily(
         send_morning,
         time(9, 0, tzinfo=MOSCOW_TZ),
@@ -417,12 +504,16 @@ async def send_night(context: ContextTypes.DEFAULT_TYPE):
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
+    user = get_user(chat_id)
+    
+    # Проверяем, был ли пользователь уже активен
+    was_active = user.get("active", False)
     
     await save_user(chat_id, {
         "active": True,
         "start_date": get_current_date().isoformat(),
+        "last_stage_shown": -1,
         "used_tips": [],
-        "used_stages": [],
         "used_triggers": [],
         "used_distortions": [],
         "used_facts": [],
@@ -431,16 +522,33 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "last_hold_time": None
     })
     
-    schedule_jobs(chat_id, context.application.job_queue)
+    # Создаем задачи только если пользователь не был активен
+    if not was_active:
+        schedule_jobs(chat_id, context.application.job_queue)
+        logger.info(f"Созданы новые задачи для пользователя {chat_id}")
+    else:
+        logger.info(f"Пользователь {chat_id} уже активен, задачи не создаем")
     
     days = get_days_since_start(chat_id)
     
     if days == 0:
-        msg = "Привет. Ты начинаешь путь. Первые шаги самые важные."
+        msg = (
+            "Привет, брат! 👋\n\n"
+            "Я буду писать три раза в день — просто напомнить: сегодня не стоит.\n\n"
+            "Когда тяжело — жми «✊ Держусь».\n"
+            "Все получат пуш. Так ты покажешь, что ещё здесь.\n"
+            "Можно жать до 5 раз в день, если совсем тяжело.\n\n"
+            "Держись, я рядом. 💪"
+        )
     else:
-        msg = f"Привет. Ты держишься {format_days(days)}. Я рядом."
-    
-    msg += "\n\nЯ буду писать три раза в день.\nКогда тяжело — жми ✊ Держусь\n\nДержись."
+        msg = (
+            f"Привет. Ты держишься {format_days(days)}. Я рядом.\n\n"
+            "Я буду писать три раза в день — просто напомнить: сегодня не стоит.\n\n"
+            "Когда тяжело — жми «✊ Держусь».\n"
+            "Все получат пуш. Так ты покажешь, что ещё здесь.\n"
+            "Можно жать до 5 раз в день, если совсем тяжело.\n\n"
+            "Держись, я рядом. 💪"
+        )
     
     await update.message.reply_text(msg, reply_markup=get_main_keyboard())
 
@@ -475,25 +583,40 @@ async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "hold_count_today": 0,
             "last_hold_date": today_str
         })
+        user = get_user(chat_id)  # Обновляем данные
     
+    # Улучшенная обработка времени
     if user.get("last_hold_time"):
         try:
             last_time_str = user["last_hold_time"]
-            if '+' in last_time_str or (len(last_time_str) > 6 and last_time_str[-6] in '+-'):
-                last_time = datetime.fromisoformat(last_time_str)
-            else:
-                last_time = datetime.fromisoformat(last_time_str).replace(tzinfo=MOSCOW_TZ)
+            
+            # Пытаемся распарсить разными способами
+            try:
+                if 'T' in last_time_str:
+                    # Пробуем с таймзоной
+                    last_time = datetime.fromisoformat(last_time_str)
+                else:
+                    # Старый формат без таймзоны
+                    last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=MOSCOW_TZ)
+            except ValueError:
+                # Если не получается - используем текущее время
+                last_time = current_time - timedelta(minutes=31)  # Ставим старее таймаута
+            
+            # Убедимся, что время имеет таймзону
+            if last_time.tzinfo is None:
+                last_time = last_time.replace(tzinfo=MOSCOW_TZ)
             
             diff = (current_time - last_time).total_seconds()
             if diff < 1800:
-                mins = int((1800 - diff + 59) // 60)
+                mins = int((1800 - diff) / 60) + 1
                 await update.message.reply_text(
                     f"Подожди ещё {mins} {'минуту' if mins == 1 else 'минут'}.",
                     reply_markup=get_main_keyboard()
                 )
                 return
         except Exception as e:
-            logger.error(f"Ошибка проверки таймаута: {e}")
+            logger.error(f"Ошибка проверки таймаута: {e}, last_time_str: {last_time_str}")
+            # При ошибке пропускаем проверку таймаута
     
     if user.get("hold_count_today", 0) >= 5:
         await update.message.reply_text(
@@ -530,15 +653,22 @@ async def handle_heavy(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Что нужно?", reply_markup=get_heavy_keyboard())
 
 async def handle_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    tip = get_next_item(update.effective_chat.id, HELP_TECHNIQUES, "used_tips")
+    tip = get_next_exercise(update.effective_chat.id)
     await update.message.reply_text(tip, reply_markup=get_heavy_keyboard())
 
 async def handle_info_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text("Выбери раздел:", reply_markup=get_info_keyboard())
 
 async def handle_stages(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    stage = get_next_item(update.effective_chat.id, RECOVERY_STAGES, "used_stages")
-    await update.message.reply_text(stage, reply_markup=get_info_keyboard())
+    chat_id = update.effective_chat.id
+    stage_text, stage_num, max_available = get_next_stage(chat_id)
+    
+    if stage_num == max_available and stage_num < len(RECOVERY_STAGES) - 1:
+        # Все доступные стадии прочитаны, но есть ещё
+        next_stage = RECOVERY_STAGES[stage_num + 1]
+        stage_text += f"\n\nВсе доступные стадии прочитаны. Следующая откроется на {next_stage['min_days']} день."
+    
+    await update.message.reply_text(stage_text, reply_markup=get_info_keyboard())
 
 async def handle_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trigger = get_next_item(update.effective_chat.id, TRIGGERS_INFO, "used_triggers")
@@ -576,6 +706,13 @@ async def handle_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
             msg += f"\n\nЛучший результат: {format_days(best)}"
         elif best > 0 and best == days:
             msg += f"\n\nЭто твой лучший результат прямо сейчас!"
+    
+    # Показываем прогресс по стадиям
+    _, current_stage, max_available = get_next_stage(chat_id)
+    if max_available < len(RECOVERY_STAGES) - 1:
+        next_stage = RECOVERY_STAGES[max_available + 1]
+        msg += f"\n\n📊 Прогресс: {current_stage + 1}/{len(RECOVERY_STAGES)} стадий"
+        msg += f"\nСледующая стадия через {max(next_stage['min_days'] - days, 1)} дней"
     
     await update.message.reply_text(msg, reply_markup=get_main_keyboard())
     
@@ -616,8 +753,23 @@ async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def restore_jobs(application):
     active = get_active_users()
     logger.info(f"Восстанавливаем задания для {len(active)} пользователей")
+    
+    # Получаем все текущие задачи
+    existing_jobs = list(application.job_queue.jobs())
+    
     for user_id in active:
-        schedule_jobs(user_id, application.job_queue)
+        # Проверяем, есть ли уже задачи для этого пользователя
+        user_has_jobs = False
+        for job in existing_jobs:
+            if (hasattr(job, 'name') and str(user_id) in job.name) or \
+               (job.data and job.data.get('chat_id') == user_id):
+                user_has_jobs = True
+                break
+        
+        # Создаем задачи только если их нет
+        if not user_has_jobs:
+            schedule_jobs(user_id, application.job_queue)
+            logger.info(f"Восстановлены задачи для пользователя {user_id}")
 
 def main():
     application = Application.builder().token(TOKEN).build()
@@ -626,20 +778,20 @@ def main():
     application.add_handler(CommandHandler("stop", stop_command))
     
     application.add_handler(MessageHandler(filters.Regex("^✊ Держусь$"), handle_hold))
-    application.add_handler(MessageHandler(filters.Regex("^😔 Тяжело$"), handle_heavy))
     application.add_handler(MessageHandler(filters.Regex("^📊 Дни$"), handle_days))
+    application.add_handler(MessageHandler(filters.Regex("^😔 Тяжело$"), handle_heavy))
     application.add_handler(MessageHandler(filters.Regex("^👋 Ты тут\?$"), handle_are_you_here))
     application.add_handler(MessageHandler(filters.Regex("^❤️ Спасибо$"), handle_thank_you))
     application.add_handler(MessageHandler(filters.Regex("^⏸ Помолчи$"), stop_command))
     
     application.add_handler(MessageHandler(filters.Regex("^🔥 Сделать упражнение$"), handle_exercise))
-    application.add_handler(MessageHandler(filters.Regex("^🧠 Получить информацию$"), handle_info_menu))
+    application.add_handler(MessageHandler(filters.Regex("^🧠 Информация$"), handle_info_menu))
     application.add_handler(MessageHandler(filters.Regex("^💔 Срыв$"), handle_breakdown))
     
-    application.add_handler(MessageHandler(filters.Regex("^📅 Стадии восстановления$"), handle_stages))
+    application.add_handler(MessageHandler(filters.Regex("^📅 Стадии$"), handle_stages))
     application.add_handler(MessageHandler(filters.Regex("^⚠️ Триггеры$"), handle_triggers))
-    application.add_handler(MessageHandler(filters.Regex("^🤯 Искажения мышления$"), handle_distortions))
-    application.add_handler(MessageHandler(filters.Regex("^🔬 Научные факты$"), handle_facts))
+    application.add_handler(MessageHandler(filters.Regex("^🤯 Искажения$"), handle_distortions))
+    application.add_handler(MessageHandler(filters.Regex("^🔬 Факты$"), handle_facts))
     
     application.add_handler(MessageHandler(filters.Regex("^↩ Назад$"), handle_back))
     
