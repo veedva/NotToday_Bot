@@ -7,7 +7,6 @@ from datetime import datetime, time, date, timedelta
 from filelock import FileLock
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
-from telegram.error import BadRequest
 import pytz
 
 logging.basicConfig(
@@ -500,8 +499,7 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
         [KeyboardButton("👋 Ты тут?"), KeyboardButton("📊 Дни")],
-        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")],
-        [KeyboardButton("🧹 Очистить чат")]
+        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
     ], resize_keyboard=True)
 
 def get_start_keyboard():
@@ -573,9 +571,7 @@ def get_user(user_id):
             "used_tips": [],
             "used_triggers": [],
             "used_distortions": [],
-            "used_facts": [],
-            "messages_to_delete": [],  # Хранение ID сообщений бота для удаления
-            "last_cleanup_date": None  # Дата последней очистки
+            "used_facts": []
         }
         asyncio.create_task(save_data())
     
@@ -686,117 +682,6 @@ def get_next_item(user_id, items_list, used_key):
     
     return items_list[choice]
 
-async def add_message_to_delete(user_id, message_id):
-    """Добавляет ID сообщения бота в список для удаления"""
-    user = get_user(user_id)
-    messages = user.get("messages_to_delete", [])
-    messages.append(message_id)
-    
-    # Храним только последние 1000 сообщений, чтобы не перегружать память
-    if len(messages) > 1000:
-        messages = messages[-500:]
-    
-    await save_user(user_id, {"messages_to_delete": messages})
-
-async def delete_old_messages(chat_id, context: ContextTypes.DEFAULT_TYPE):
-    """Удаляет все сообщения бота, отправленные вчера"""
-    user = get_user(chat_id)
-    messages_to_delete = user.get("messages_to_delete", [])
-    
-    if not messages_to_delete:
-        return 0
-    
-    deleted_count = 0
-    failed_count = 0
-    
-    # Пытаемся удалить каждое сообщение
-    for msg_id in messages_to_delete[:100]:  # Ограничиваем 100 сообщениями за раз
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=msg_id)
-            deleted_count += 1
-            await asyncio.sleep(0.1)  # Небольшая задержка, чтобы не превысить лимиты Telegram
-        except BadRequest as e:
-            if "message to delete not found" in str(e) or "message can't be deleted" in str(e):
-                # Сообщение уже удалено или нельзя удалить - это нормально
-                pass
-            else:
-                logger.error(f"Ошибка удаления сообщения {msg_id} для {chat_id}: {e}")
-                failed_count += 1
-        except Exception as e:
-            logger.error(f"Неизвестная ошибка при удалении сообщения {msg_id} для {chat_id}: {e}")
-            failed_count += 1
-    
-    # Очищаем список удалённых сообщений
-    await save_user(chat_id, {
-        "messages_to_delete": [],
-        "last_cleanup_date": get_current_date().isoformat()
-    })
-    
-    logger.info(f"Удалено {deleted_count} старых сообщений для пользователя {chat_id}")
-    return deleted_count
-
-async def cleanup_yesterday_messages(context: ContextTypes.DEFAULT_TYPE):
-    """Ежедневная очистка сообщений бота для всех активных пользователей"""
-    active_users = get_active_users()
-    logger.info(f"Начинаем ежедневную очистку сообщений для {len(active_users)} пользователей")
-    
-    total_deleted = 0
-    for chat_id in active_users:
-        try:
-            deleted = await delete_old_messages(chat_id, context)
-            total_deleted += deleted
-            await asyncio.sleep(0.5)  # Задержка между пользователями
-        except Exception as e:
-            logger.error(f"Ошибка при очистке сообщений для {chat_id}: {e}")
-    
-    logger.info(f"Ежедневная очистка завершена. Удалено {total_deleted} сообщений")
-    return total_deleted
-
-async def handle_cleanup(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Ручная очистка чата по запросу пользователя"""
-    chat_id = update.effective_chat.id
-    user = get_user(chat_id)
-    
-    if not user.get("active"):
-        await update.message.reply_text(
-            "Сначала нажми ▶ Начать",
-            reply_markup=get_start_keyboard()
-        )
-        return
-    
-    # Отправляем сообщение о начале очистки
-    cleanup_msg = await update.message.reply_text("🧹 Начинаю очистку вчерашних сообщений...")
-    
-    # Удаляем старые сообщения
-    deleted_count = await delete_old_messages(chat_id, context)
-    
-    # Удаляем наше служебное сообщение
-    try:
-        await context.bot.delete_message(chat_id=chat_id, message_id=cleanup_msg.message_id)
-    except:
-        pass
-    
-    if deleted_count > 0:
-        # Отправляем краткий отчёт и удаляем его через 3 секунды
-        report_msg = await update.message.reply_text(f"✅ Удалено {deleted_count} вчерашних сообщений")
-        
-        # Удаляем отчёт через 3 секунды
-        await asyncio.sleep(3)
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=report_msg.message_id)
-        except:
-            pass
-    else:
-        # Если нечего было удалять
-        report_msg = await update.message.reply_text("✅ Вчерашние сообщения уже удалены или их не было")
-        
-        # Удаляем отчёт через 2 секунды
-        await asyncio.sleep(2)
-        try:
-            await context.bot.delete_message(chat_id=chat_id, message_id=report_msg.message_id)
-        except:
-            pass
-
 async def reset_streak(user_id):
     current = get_days_since_start(user_id)
     user = get_user(user_id)
@@ -813,9 +698,7 @@ async def reset_streak(user_id):
         "used_tips": [],
         "used_triggers": [],
         "used_distortions": [],
-        "used_facts": [],
-        "messages_to_delete": [],  # Очищаем список сообщений при сбросе
-        "last_cleanup_date": None
+        "used_facts": []
     })
     
     return current
@@ -873,8 +756,7 @@ async def send_morning(context: ContextTypes.DEFAULT_TYPE):
     if days in MILESTONES:
         msg += f"\n\n{MILESTONES[days]}"
     
-    sent_msg = await context.bot.send_message(chat_id, msg, reply_markup=get_main_keyboard())
-    await add_message_to_delete(chat_id, sent_msg.message_id)
+    await context.bot.send_message(chat_id, msg, reply_markup=get_main_keyboard())
 
 async def send_evening(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.data['chat_id']
@@ -883,12 +765,11 @@ async def send_evening(context: ContextTypes.DEFAULT_TYPE):
     if not user.get("active"):
         return
     
-    sent_msg = await context.bot.send_message(
+    await context.bot.send_message(
         chat_id,
         random.choice(EVENING_MESSAGES),
         reply_markup=get_main_keyboard()
     )
-    await add_message_to_delete(chat_id, sent_msg.message_id)
 
 async def send_night(context: ContextTypes.DEFAULT_TYPE):
     chat_id = context.job.data['chat_id']
@@ -897,12 +778,11 @@ async def send_night(context: ContextTypes.DEFAULT_TYPE):
     if not user.get("active"):
         return
     
-    sent_msg = await context.bot.send_message(
+    await context.bot.send_message(
         chat_id,
         random.choice(NIGHT_MESSAGES),
         reply_markup=get_main_keyboard()
     )
-    await add_message_to_delete(chat_id, sent_msg.message_id)
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -921,9 +801,7 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "used_facts": [],
         "hold_count_today": 0,
         "last_hold_date": None,
-        "last_hold_time": None,
-        "messages_to_delete": [],
-        "last_cleanup_date": None
+        "last_hold_time": None
     })
     
     # Создаем задачи только если пользователь не был активен
@@ -942,8 +820,6 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Когда тяжело — жми «✊ Держусь».\n"
             "Все получат пуш. Так ты покажешь, что ещё здесь.\n"
             "Можно жать до 5 раз в день, если совсем тяжело.\n\n"
-            "📌 Каждое утро я автоматически удаляю вчерашние сообщения.\n"
-            "Так чат остаётся чистым и опрятным.\n\n"
             "Держись, я рядом. 💪"
         )
     else:
@@ -953,13 +829,10 @@ async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "Когда тяжело — жми «✊ Держусь».\n"
             "Все получат пуш. Так ты покажешь, что ещё здесь.\n"
             "Можно жать до 5 раз в день, если совсем тяжело.\n\n"
-            "📌 Каждое утро я автоматически удаляю вчерашние сообщения.\n"
-            "Так чат остаётся чистым и опрятным.\n\n"
             "Держись, я рядом. 💪"
         )
     
-    sent_msg = await update.message.reply_text(msg, reply_markup=get_main_keyboard())
-    await add_message_to_delete(chat_id, sent_msg.message_id)
+    await update.message.reply_text(msg, reply_markup=get_main_keyboard())
 
 async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -968,22 +841,20 @@ async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
     removed = remove_user_jobs(chat_id, context.application.job_queue)
     logger.info(f"Удалено {removed} джобов для {chat_id}")
     
-    sent_msg = await update.message.reply_text(
+    await update.message.reply_text(
         "Уведомления остановлены.\nКогда будешь готов — жми ▶ Начать",
         reply_markup=get_start_keyboard()
     )
-    await add_message_to_delete(chat_id, sent_msg.message_id)
 
 async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = get_user(chat_id)
     
     if not user.get("active"):
-        sent_msg = await update.message.reply_text(
+        await update.message.reply_text(
             "Сначала нажми ▶ Начать",
             reply_markup=get_start_keyboard()
         )
-        await add_message_to_delete(chat_id, sent_msg.message_id)
         return
     
     current_time = get_current_time()
@@ -1019,22 +890,20 @@ async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
             diff = (current_time - last_time).total_seconds()
             if diff < 1800:
                 mins = int((1800 - diff) / 60) + 1
-                sent_msg = await update.message.reply_text(
+                await update.message.reply_text(
                     f"Подожди ещё {mins} {'минуту' if mins == 1 else 'минут'}.",
                     reply_markup=get_main_keyboard()
                 )
-                await add_message_to_delete(chat_id, sent_msg.message_id)
                 return
         except Exception as e:
             logger.error(f"Ошибка проверки таймаута: {e}, last_time_str: {last_time_str}")
             # При ошибке пропускаем проверку таймаута
     
     if user.get("hold_count_today", 0) >= 5:
-        sent_msg = await update.message.reply_text(
+        await update.message.reply_text(
             "Сегодня уже 5 раз.\nЗавтра снова сможешь.",
             reply_markup=get_main_keyboard()
         )
-        await add_message_to_delete(chat_id, sent_msg.message_id)
         return
     
     await save_user(chat_id, {
@@ -1043,18 +912,16 @@ async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "hold_count_today": user.get("hold_count_today", 0) + 1
     })
     
-    sent_msg = await update.message.reply_text(
+    await update.message.reply_text(
         random.choice(HOLD_RESPONSES),
         reply_markup=get_main_keyboard()
     )
-    await add_message_to_delete(chat_id, sent_msg.message_id)
     
     active = get_active_users()
     for uid in active:
         if uid != chat_id:
             try:
-                push_msg = await context.bot.send_message(uid, "✊")
-                await add_message_to_delete(uid, push_msg.message_id)
+                await context.bot.send_message(uid, "✊")
                 await asyncio.sleep(0.05)
             except Exception as e:
                 error_str = str(e).lower()
@@ -1064,38 +931,31 @@ async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
                     logger.info(f"Деактивирован {uid}: заблокировал бота")
 
 async def handle_heavy(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    sent_msg = await update.message.reply_text("Что нужно?", reply_markup=get_heavy_keyboard())
-    await add_message_to_delete(update.effective_chat.id, sent_msg.message_id)
+    await update.message.reply_text("Что нужно?", reply_markup=get_heavy_keyboard())
 
 async def handle_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
     tip = get_next_exercise(update.effective_chat.id)
-    sent_msg = await update.message.reply_text(tip, reply_markup=get_heavy_keyboard())
-    await add_message_to_delete(update.effective_chat.id, sent_msg.message_id)
+    await update.message.reply_text(tip, reply_markup=get_heavy_keyboard())
 
 async def handle_info_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    sent_msg = await update.message.reply_text("Выбери раздел:", reply_markup=get_info_keyboard())
-    await add_message_to_delete(update.effective_chat.id, sent_msg.message_id)
+    await update.message.reply_text("Выбери раздел:", reply_markup=get_info_keyboard())
 
 async def handle_stages(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     stage_text = get_next_stage(chat_id)
-    sent_msg = await update.message.reply_text(stage_text, reply_markup=get_info_keyboard())
-    await add_message_to_delete(chat_id, sent_msg.message_id)
+    await update.message.reply_text(stage_text, reply_markup=get_info_keyboard())
 
 async def handle_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE):
     trigger = get_next_item(update.effective_chat.id, TRIGGERS_INFO, "used_triggers")
-    sent_msg = await update.message.reply_text(trigger, reply_markup=get_info_keyboard())
-    await add_message_to_delete(update.effective_chat.id, sent_msg.message_id)
+    await update.message.reply_text(trigger, reply_markup=get_info_keyboard())
 
 async def handle_distortions(update: Update, context: ContextTypes.DEFAULT_TYPE):
     distortion = get_next_item(update.effective_chat.id, COGNITIVE_DISTORTIONS, "used_distortions")
-    sent_msg = await update.message.reply_text(distortion, reply_markup=get_info_keyboard())
-    await add_message_to_delete(update.effective_chat.id, sent_msg.message_id)
+    await update.message.reply_text(distortion, reply_markup=get_info_keyboard())
 
 async def handle_facts(update: Update, context: ContextTypes.DEFAULT_TYPE):
     fact = get_next_item(update.effective_chat.id, SCIENCE_FACTS, "used_facts")
-    sent_msg = await update.message.reply_text(fact, reply_markup=get_info_keyboard())
-    await add_message_to_delete(update.effective_chat.id, sent_msg.message_id)
+    await update.message.reply_text(fact, reply_markup=get_info_keyboard())
 
 async def handle_breakdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -1105,8 +965,7 @@ async def handle_breakdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg += "Это не провал. Это данные для следующей попытки.\n\n"
     msg += "Когда будешь готов начать снова — жми ▶ Начать"
     
-    sent_msg = await update.message.reply_text(msg, reply_markup=get_start_keyboard())
-    await add_message_to_delete(chat_id, sent_msg.message_id)
+    await update.message.reply_text(msg, reply_markup=get_start_keyboard())
 
 async def handle_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -1123,29 +982,22 @@ async def handle_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
         elif best > 0 and best == days:
             msg += f"\n\nЭто твой лучший результат прямо сейчас!"
     
-    sent_msg = await update.message.reply_text(msg, reply_markup=get_main_keyboard())
-    await add_message_to_delete(chat_id, sent_msg.message_id)
+    await update.message.reply_text(msg, reply_markup=get_main_keyboard())
     
     if days in MILESTONES:
-        milestone_msg = await update.message.reply_text(MILESTONES[days], reply_markup=get_main_keyboard())
-        await add_message_to_delete(chat_id, milestone_msg.message_id)
+        await update.message.reply_text(MILESTONES[days], reply_markup=get_main_keyboard())
 
 async def handle_are_you_here(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    chat_id = update.effective_chat.id
     await asyncio.sleep(random.randint(2, 6))
-    
-    first_msg = await update.message.reply_text(
+    await update.message.reply_text(
         random.choice(TU_TUT_FIRST),
         reply_markup=get_main_keyboard()
     )
-    await add_message_to_delete(chat_id, first_msg.message_id)
-    
     await asyncio.sleep(random.randint(2, 5))
-    second_msg = await update.message.reply_text(
+    await update.message.reply_text(
         random.choice(TU_TUT_SECOND),
         reply_markup=get_main_keyboard()
     )
-    await add_message_to_delete(chat_id, second_msg.message_id)
 
 async def handle_thank_you(update: Update, context: ContextTypes.DEFAULT_TYPE):
     msg = (
@@ -1155,12 +1007,10 @@ async def handle_thank_you(update: Update, context: ContextTypes.DEFAULT_TYPE):
         "Любая сумма поможет развивать бота дальше.\n\n"
         "Главное — держись."
     )
-    sent_msg = await update.message.reply_text(msg, reply_markup=get_main_keyboard())
-    await add_message_to_delete(update.effective_chat.id, sent_msg.message_id)
+    await update.message.reply_text(msg, reply_markup=get_main_keyboard())
 
 async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    sent_msg = await update.message.reply_text("Окей", reply_markup=get_main_keyboard())
-    await add_message_to_delete(update.effective_chat.id, sent_msg.message_id)
+    await update.message.reply_text("Окей", reply_markup=get_main_keyboard())
 
 async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
     text = update.message.text
@@ -1175,19 +1025,6 @@ async def restore_jobs(application):
     # Получаем все текущие задачи
     existing_jobs = list(application.job_queue.jobs())
     
-    # Удаляем старые задачи ежедневной очистки
-    for job in existing_jobs[:]:
-        if hasattr(job, 'name') and job.name == "daily_cleanup":
-            job.schedule_removal()
-    
-    # Создаем новую задачу ежедневной очистки на 8:00 утра
-    application.job_queue.run_daily(
-        cleanup_yesterday_messages,
-        time(8, 0, tzinfo=MOSCOW_TZ),
-        name="daily_cleanup"
-    )
-    
-    # Восстанавливаем задачи для каждого пользователя
     for user_id in active:
         # Проверяем, есть ли уже задачи для этого пользователя
         user_has_jobs = False
@@ -1214,7 +1051,6 @@ def main():
     application.add_handler(MessageHandler(filters.Regex("^👋 Ты тут\?$"), handle_are_you_here))
     application.add_handler(MessageHandler(filters.Regex("^❤️ Спасибо$"), handle_thank_you))
     application.add_handler(MessageHandler(filters.Regex("^⏸ Помолчи$"), stop_command))
-    application.add_handler(MessageHandler(filters.Regex("^🧹 Очистить чат$"), handle_cleanup))
     
     application.add_handler(MessageHandler(filters.Regex("^🔥 Сделать упражнение$"), handle_exercise))
     application.add_handler(MessageHandler(filters.Regex("^🧠 Информация$"), handle_info_menu))
