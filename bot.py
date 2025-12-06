@@ -19,7 +19,7 @@ if not TOKEN:
 DATA_FILE = "user_data.json"
 LOCK_FILE = DATA_FILE + ".lock"
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
-REFLECTION, BREAKDOWN_STATE = range(2)
+REFLECTION, BREAKDOWN_STATE, COGNITIVE_STATE, FRIEND_HELP_STATE = range(4)
 
 MORNING_MESSAGES = [
     "Привет. Давай сегодня не будем, хорошо?", "Доброе утро. Не сегодня.", "Привет. Держимся сегодня?",
@@ -97,6 +97,68 @@ HELP_TECHNIQUES = [
     "Включи смешное видео или мемы на 5 минут. Смех — природный антидепрессант."
 ]
 
+EVIDENCE_BASED_FACTS = [
+    "Факт: Восстановление CB1-рецепторов занимает 4-6 недель. 90% рецепторов восстанавливаются за 28 дней.",
+    "Факт: Дофаминовая система начинает приходить в норму через 2-4 недели. Мозг учится производить дофамин сам.",
+    "Факт: Нарушения сна нормализуются к 14-21 дню. Первая неделя — почти полная бессонница, это норма.",
+    "Факт: Тревожность пик на 2-3 день, спадает к 7-10 дню. Кортизол возвращается к базовому уровню через 2 недели.",
+    "Факт: 72 часа — пик физических симптомов. Температура, потливость — это автономная нервная система перезагружается.",
+    "Факт: Когнитивные функции улучшаются на 25% к 30 дню, полное восстановление к 90 дню.",
+    "Факт: Рецидив в первые 30 дней — у 75% людей. Это не провал, а этап обучения.",
+    "Факт: Физические упражнения ускоряют нейрогенез на 30%. BDNF — природный антидепрессант."
+]
+
+STAGES_MAP = [
+    "🔥 День 1-3: ОСТРАЯ ФАЗА\n• Пик физических симптомов\n• Тревожность 8/10\n• Сон нарушен\n• Аппетит нулевой\nОЖИДАНИЯ: Самое тяжёлое. Держись.",
+    "🌧 День 4-7: ПОДОСТРАЯ ФАЗА\n• Симптомы спадают на 40%\n• Настроение скачет\n• Сон фрагментированный\n• Появляются окна ясности\nОЖИДАНИЯ: Лёгкие дни чередуются с тяжёлыми.",
+    "⛅ День 8-14: АДАПТАЦИЯ\n• Рецепторы оживают\n• Энергия возвращается\n• Сон налаживается\n• Тяга приходит волнами\nОЖИДАНИЯ: Стабильность появляется.",
+    "🌈 День 15-28: ВОССТАНОВЛЕНИЕ\n• Мозг работает чище\n• Эмоции стабильны\n• Сон глубокий\n• Естественная радость\nОЖИДАНИЯ: Новая норма.",
+    "🚀 День 29-90: СТАБИЛИЗАЦИЯ\n• Полная перезагрузка\n• Тяга редко\n• Ясное мышление\n• Энергия стабильна\nОЖИДАНИЯ: Жизнь без зависимости."
+]
+
+PROTOCOLS = {
+    "сон": [
+        "💤 Протокол сна: За 2 часа до сна — никаких экранов. Температура в комнате 18°C.",
+        "💤 Протокол сна: Если не спится — встань. 15 мин чтения бумажной книги.",
+        "💤 Протокол сна: Дыхание 4-7-8 прямо в кровати. 6 циклов.",
+        "💤 Протокол сна: Белый шум/дождь на 30 мин. Мозг фокусируется на монотонном звуке."
+    ],
+    "тревога": [
+        "😰 Протокол тревоги: Холодное умывание 30 сек. Активирует блуждающий нерв.",
+        "😰 Протокол тревоги: 5-4-3-2-1: 5 вещей вижу, 4 трогаю, 3 слышу, 2 нюхаю, 1 вкус.",
+        "😰 Протокол тревоги: Планка до отказа. Мышцы горят — мозг забывает про тревогу.",
+        "😰 Протокол тревоги: «Это просто тревога. Она пройдёт через 15 мин». Скажи вслух 3 раза."
+    ],
+    "аппетит": [
+        "🍽 Протокол аппетита: Жидкая пища первые дни. Смузи, бульон.",
+        "🍽 Протокол аппетита: Маленькие порции каждые 3 часа. Орехи, банан, йогурт.",
+        "🍽 Протокол аппетита: Имбирь/лимон в воду. Стимулирует ЖКТ.",
+        "🍽 Протокол аппетита: Не заставляй себя. Тело знает, когда готово."
+    ],
+    "паника": [
+        "⚡ Протокол паники: Лёд в рот на 30 сек. Шок для нервной системы — перезагрузка.",
+        "⚡ Протокол паники: Быстрая прогулка 7-10 мин. Движение сжигает адреналин.",
+        "⚡ Протокол паники: «Я в безопасности сейчас». Повтори как мантру.",
+        "⚡ Протокол паники: Позвони кому-то. Голос другого человека выводит из петли паники."
+    ]
+}
+
+COGNITIVE_DISTORTIONS = [
+    "🤯 Искажение: «Я всё испортил»\nФакт: Один срыв ≠ провал. Мозг учится. Каждая попытка укрепляет нейронные пути к цели.",
+    "🤯 Искажение: «Ничего не работает»\nФакт: Работает, но медленно. Нейропластичность требует времени.",
+    "🤯 Искажение: «Я слабый»\nФакт: Зависимость — болезнь, а не слабость. Ты борешься с нейрохимическим дисбалансом.",
+    "🤯 Искажение: «Всё бессмысленно»\nФакт: Смысл появится через 2-3 недели. Сейчас мозг в режиме выживания.",
+    "🤯 Искажение: «У других получается»\nФакт: У всех свои сроки. Ты видишь только результат, а не 5 попыток до него."
+]
+
+FRIEND_HELP_ADVICE = [
+    "🤝 Как помочь другу: Напиши «Держусь, брат» раз в день. Не жди ответа.",
+    "🤝 Как помочь другу: Предложи активность без давления: «Гуляю 15 мин, присоединяйся если хочешь».",
+    "🤝 Как помочь другу: Не давай советов. Скажи: «Я рядом. Расскажи, если хочешь».",
+    "🤝 Как помочь другу: Напомни о прогрессе: «Ты уже 3 дня держишься, это круто».",
+    "🤝 Как помочь другу: Предложи дыхание вместе: «Давай 4-7-8: вдох… задержка… выдох»."
+]
+
 HELP_ADVICE_BY_DAY = [
     "Только начинаешь. Первые 72 часа самые тяжёлые — мозг требует дофамин. Это ломка, она пройдёт. Держись.",
     "Дни 1–3: острая нехватка дофамина. Мозг паникует и требует вернуть привычку. Это ломка — она пройдёт через 72 часа. Пик на 3-й день.",
@@ -112,7 +174,8 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
         [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
-        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
+        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")],
+        [KeyboardButton("📚 Наука"), KeyboardButton("🤝 Друг")]
     ], resize_keyboard=True)
 
 def get_start_keyboard():
@@ -121,7 +184,10 @@ def get_start_keyboard():
 def get_heavy_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("🔥 Упражнение"), KeyboardButton("🧠 Что происходит с телом")],
-        [KeyboardButton("💔 Срыв"), KeyboardButton("↩ Назад")]
+        [KeyboardButton("💔 Срыв"), KeyboardButton("📈 Стадии")],
+        [KeyboardButton("💤 Сон"), KeyboardButton("😰 Тревога")],
+        [KeyboardButton("🍽 Аппетит"), KeyboardButton("⚡ Паника")],
+        [KeyboardButton("🤯 Когнитивные искажения"), KeyboardButton("↩ Назад")]
     ], resize_keyboard=True)
 
 def get_exercise_keyboard():
@@ -132,6 +198,18 @@ def get_exercise_keyboard():
 
 def get_advice_keyboard():
     return ReplyKeyboardMarkup([[KeyboardButton("↩ Назад")]], resize_keyboard=True)
+
+def get_cognitive_keyboard():
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("🔄 Другое искажение")],
+        [KeyboardButton("↩ Назад")]
+    ], resize_keyboard=True)
+
+def get_friend_help_keyboard():
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("🔄 Другой совет")],
+        [KeyboardButton("↩ Назад")]
+    ], resize_keyboard=True)
 
 def get_current_time():
     return datetime.now(MOSCOW_TZ).replace(microsecond=0)
@@ -170,6 +248,8 @@ def load_data():
                     user.setdefault("last_hold_date", None)
                     user.setdefault("used_tips", [])
                     user.setdefault("message_ids", [])
+                    user.setdefault("used_cognitive", [])
+                    user.setdefault("used_friend_help", [])
                 return data
         except:
             if os.path.exists(DATA_FILE):
@@ -196,7 +276,9 @@ def get_user_data(user_id):
             "last_hold_date": None,
             "last_hold_time": None,
             "used_tips": [],
-            "message_ids": []
+            "message_ids": [],
+            "used_cognitive": [],
+            "used_friend_help": []
         }
         save_data(data)
     return data, data[uid]
@@ -236,6 +318,48 @@ def get_next_exercise(user_id):
     save_data(data)
     return HELP_TECHNIQUES[choice]
 
+def get_next_cognitive(user_id):
+    data, user = get_user_data(user_id)
+    used = user.get("used_cognitive", [])
+    total = len(COGNITIVE_DISTORTIONS)
+    
+    if len(used) >= total:
+        used = []
+        user["used_cognitive"] = used
+    
+    available = [i for i in range(total) if i not in used]
+    if not available:
+        used = []
+        available = list(range(total))
+    
+    choice = random.choice(available)
+    used.append(choice)
+    user["used_cognitive"] = used
+    data[str(user_id)] = user
+    save_data(data)
+    return COGNITIVE_DISTORTIONS[choice]
+
+def get_next_friend_help(user_id):
+    data, user = get_user_data(user_id)
+    used = user.get("used_friend_help", [])
+    total = len(FRIEND_HELP_ADVICE)
+    
+    if len(used) >= total:
+        used = []
+        user["used_friend_help"] = used
+    
+    available = [i for i in range(total) if i not in used]
+    if not available:
+        used = []
+        available = list(range(total))
+    
+    choice = random.choice(available)
+    used.append(choice)
+    user["used_friend_help"] = used
+    data[str(user_id)] = user
+    save_data(data)
+    return FRIEND_HELP_ADVICE[choice]
+
 def get_advice_for_day(days):
     if days < 1: return HELP_ADVICE_BY_DAY[0]
     elif days <= 3: return HELP_ADVICE_BY_DAY[1]
@@ -246,16 +370,35 @@ def get_advice_for_day(days):
     elif days <= 90: return HELP_ADVICE_BY_DAY[6]
     return HELP_ADVICE_BY_DAY[7]
 
+def get_stage_for_day(days):
+    if days <= 3: return STAGES_MAP[0]
+    elif days <= 7: return STAGES_MAP[1]
+    elif days <= 14: return STAGES_MAP[2]
+    elif days <= 28: return STAGES_MAP[3]
+    return STAGES_MAP[4]
+
+def get_protocol(protocol_type):
+    return random.choice(PROTOCOLS.get(protocol_type, ["Попробуй упражнение выше."]))
+
 def reset_streak(user_id):
     data, user = get_user_data(user_id)
     current = get_days_since_start(user_id)
     if current > user.get("best_streak", 0):
         user["best_streak"] = current
+    
+    user.setdefault("relapses", [])
+    user["relapses"].append({
+        "date": get_current_date().isoformat(),
+        "streak": current,
+        "best_streak": user.get("best_streak", 0)
+    })
+    
     user["start_date"] = get_current_date().isoformat()
     user["hold_count_today"] = 0
     user["last_hold_date"] = None
     user["last_hold_time"] = None
     user["used_tips"] = []
+    user["used_cognitive"] = []
     data[str(user_id)] = user
     save_data(data)
 
@@ -309,11 +452,24 @@ async def morning_job(context):
     _, user = get_user_data(chat_id)
     if not user.get("active", False):
         return
+    
     days = get_days_since_start(chat_id)
-    if days in MILESTONES:
-        await send_message(context.bot, chat_id, MILESTONES[days])
+    
+    if days <= 3:
+        expectation = "Сегодня будет тяжело. Это пик. Держись."
+    elif days <= 7:
+        expectation = "Сегодня настроение может скакать. Это норма — мозг адаптируется."
+    elif days <= 14:
+        expectation = "Сегодня могут быть окна ясности. Замечай их."
+    elif days <= 28:
+        expectation = "Сегодня энергия возвращается. Используй её мудро."
     else:
-        await send_message(context.bot, chat_id, random.choice(MORNING_MESSAGES))
+        expectation = "Сегодня просто день. Ты на правильном пути."
+    
+    if days in MILESTONES:
+        await send_message(context.bot, chat_id, f"{expectation}\n\n{MILESTONES[days]}")
+    else:
+        await send_message(context.bot, chat_id, f"{expectation}\n\n{random.choice(MORNING_MESSAGES)}")
 
 async def evening_job(context):
     chat_id = context.job.chat_id
@@ -340,6 +496,8 @@ async def start_command(update, context):
         user["hold_count_today"] = 0
         user["last_hold_date"] = None
         user["last_hold_time"] = None
+        user["used_cognitive"] = []
+        user["used_friend_help"] = []
         data[str(chat_id)] = user
         save_data(data)
         
@@ -351,7 +509,7 @@ async def start_command(update, context):
     else:
         welcome = f"Привет. Ты держишься {format_days_text(days)}. Я рядом."
     
-    welcome += "\n\nЯ буду писать три раза в день.\nКогда тяжело — жми ✊ Держусь\nВсе узнают, что ты ещё здесь.\nМожешь жать до 5 раз в сутки.\n\nДержись."
+    welcome += "\n\nЯ буду писать три раза в день.\nКогда тяжело — жми ✊ Держусь\nВсе узнают, что ты ещё здесь.\nМожешь жать до 5 раз в сутки.\nЕсть кнопки «Наука» и «Друг».\n\nДержись."
     
     await send_message(context.bot, chat_id, welcome, save=False)
 
@@ -474,9 +632,62 @@ async def handle_body_info(update, context):
     advice = get_advice_for_day(days)
     await send_message(context.bot, update.effective_chat.id, advice, get_advice_keyboard(), False)
 
+async def handle_science(update, context):
+    fact = random.choice(EVIDENCE_BASED_FACTS)
+    await send_message(context.bot, update.effective_chat.id, fact, save=False)
+
+async def handle_stages(update, context):
+    days = get_days_since_start(update.effective_chat.id)
+    stage = get_stage_for_day(days)
+    await send_message(context.bot, update.effective_chat.id, f"Твой день: {days}\n\n{stage}", save=False)
+
+async def handle_protocol(update, context):
+    text = update.message.text
+    chat_id = update.effective_chat.id
+    
+    protocol_map = {
+        "💤 Сон": "сон",
+        "😰 Тревога": "тревога", 
+        "🍽 Аппетит": "аппетит",
+        "⚡ Паника": "паника"
+    }
+    
+    protocol_type = protocol_map.get(text)
+    if protocol_type:
+        protocol = get_protocol(protocol_type)
+        await update.message.reply_text(protocol, reply_markup=get_heavy_keyboard())
+    return ConversationHandler.END
+
+async def handle_cognitive(update, context):
+    cognitive = get_next_cognitive(update.effective_chat.id)
+    await send_message(context.bot, update.effective_chat.id, cognitive, get_cognitive_keyboard(), False)
+    return COGNITIVE_STATE
+
+async def handle_another_cognitive(update, context):
+    cognitive = get_next_cognitive(update.effective_chat.id)
+    await update.message.reply_text(cognitive, reply_markup=get_cognitive_keyboard())
+
+async def handle_friend_help(update, context):
+    advice = get_next_friend_help(update.effective_chat.id)
+    await send_message(context.bot, update.effective_chat.id, advice, get_friend_help_keyboard(), False)
+    return FRIEND_HELP_STATE
+
+async def handle_another_friend_help(update, context):
+    advice = get_next_friend_help(update.effective_chat.id)
+    await update.message.reply_text(advice, reply_markup=get_friend_help_keyboard())
+
 async def handle_breakdown(update, context):
+    breakdown_text = (
+        "🔄 Срыв — это часть процесса\n\n"
+        "Факт: 85% людей срываются в первые 30 дней.\n"
+        "Факт: Среднее число попыток до устойчивой ремиссии — 3-5.\n"
+        "Факт: Каждая попытка укрепляет нейронные пути к цели.\n\n"
+        "Это не провал. Это данные для следующей попытки.\n\n"
+        "Что было ближе всего?"
+    )
+    
     await update.message.reply_text(
-        "Спасибо, что сказал честно.\nЧто было ближе всего?",
+        breakdown_text,
         reply_markup=ReplyKeyboardMarkup([
             [KeyboardButton("😔 Усталость/апатия"), KeyboardButton("🌊 Эмоциональный всплеск")],
             [KeyboardButton("🔄 Автоматическая привычка"), KeyboardButton("👥 Социальное влияние")],
@@ -499,9 +710,17 @@ async def handle_breakdown_response(update, context):
     
     reset_streak(chat_id)
     
+    recovery_protocol = (
+        "\n\n🔄 Протокол восстановления:\n"
+        "1. Сейчас же — 10 глубоких вдохов\n"
+        "2. Выпей стакан воды\n"
+        "3. Скажи вслух: «Начинаю с чистого листа»\n"
+        "4. Жми ▶ Начать когда будешь готов"
+    )
+    
     await update.message.reply_text(
-        f"{responses.get(text, 'Ты сделал шаг вперёд.')}\n\nНачинаем с чистого листа. Я с тобой.",
-        reply_markup=get_main_keyboard()
+        f"{responses.get(text, 'Ты сделал шаг вперёд.')}{recovery_protocol}",
+        reply_markup=get_start_keyboard()
     )
     
     return ConversationHandler.END
@@ -522,6 +741,10 @@ async def handle_days(update, context):
             msg += f"\n\nЛучший стрик был: {best_text}"
         elif best > 0 and best == days:
             msg += f"\n\nЭто твой лучший стрик прямо сейчас"
+    
+    if days > 0:
+        stage = get_stage_for_day(days)
+        msg += f"\n\n{stage}"
     
     await send_message(context.bot, chat_id, msg, save=False)
     if days in MILESTONES:
@@ -588,10 +811,40 @@ def main():
         conversation_timeout=300
     )
     
+    cognitive_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex("^🤯 Когнитивные искажения$"), handle_cognitive)],
+        states={COGNITIVE_STATE: [MessageHandler(filters.Regex("^🔄 Другое искажение$"), handle_another_cognitive)]},
+        fallbacks=[MessageHandler(filters.Regex("^↩ Назад$"), handle_back)],
+        conversation_timeout=300
+    )
+    
+    friend_help_conv = ConversationHandler(
+        entry_points=[MessageHandler(filters.Regex("^🤝 Друг$"), handle_friend_help)],
+        states={FRIEND_HELP_STATE: [MessageHandler(filters.Regex("^🔄 Другой совет$"), handle_another_friend_help)]},
+        fallbacks=[MessageHandler(filters.Regex("^↩ Назад$"), handle_back)],
+        conversation_timeout=300
+    )
+    
+    protocol_conv = ConversationHandler(
+        entry_points=[
+            MessageHandler(filters.Regex("^💤 Сон$"), handle_protocol),
+            MessageHandler(filters.Regex("^😰 Тревога$"), handle_protocol),
+            MessageHandler(filters.Regex("^🍽 Аппетит$"), handle_protocol),
+            MessageHandler(filters.Regex("^⚡ Паника$"), handle_protocol)
+        ],
+        states={},
+        fallbacks=[MessageHandler(filters.Regex("^↩ Назад$"), handle_back)],
+        conversation_timeout=300
+    )
+    
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("stop", stop_command))
     application.add_handler(hold_conv)
     application.add_handler(breakdown_conv)
+    application.add_handler(cognitive_conv)
+    application.add_handler(friend_help_conv)
+    application.add_handler(protocol_conv)
+    
     application.add_handler(MessageHandler(filters.Regex("^😔 Тяжело$"), handle_heavy))
     application.add_handler(MessageHandler(filters.Regex("^🔥 Упражнение$"), handle_exercise))
     application.add_handler(MessageHandler(filters.Regex("^🔄 Другое упражнение$"), handle_another_exercise))
@@ -600,6 +853,9 @@ def main():
     application.add_handler(MessageHandler(filters.Regex("^👋 Ты тут\?$"), handle_are_you_here))
     application.add_handler(MessageHandler(filters.Regex("^❤️ Спасибо$"), handle_thank_you))
     application.add_handler(MessageHandler(filters.Regex("^↩ Назад$"), handle_back))
+    application.add_handler(MessageHandler(filters.Regex("^📚 Наука$"), handle_science))
+    application.add_handler(MessageHandler(filters.Regex("^📈 Стадии$"), handle_stages))
+    
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
     
     application.post_init = restore_jobs_on_startup
