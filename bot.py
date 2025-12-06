@@ -174,8 +174,8 @@ def get_main_keyboard():
     return ReplyKeyboardMarkup([
         [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
         [KeyboardButton("📊 Дни"), KeyboardButton("👋 Ты тут?")],
-        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")],
-        [KeyboardButton("📚 Наука"), KeyboardButton("🤝 Друг")]
+        [KeyboardButton("📚 Наука"), KeyboardButton("🤝 Друг")],
+        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
     ], resize_keyboard=True)
 
 def get_start_keyboard():
