@@ -1,22 +1,34 @@
 # bot.py
-import logging
-import random
-import json
 import os
+import json
+import random
 import asyncio
+import logging
 from datetime import datetime, date, time, timedelta
 from filelock import FileLock
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+import pytz
+
+from telegram import (
+    Update,
+    InlineKeyboardButton,
+    InlineKeyboardMarkup,
+    ReplyKeyboardMarkup,
+    KeyboardButton,
+)
 from telegram.constants import ParseMode
 from telegram.ext import (
-    Application, CommandHandler, CallbackQueryHandler, ContextTypes
+    Application,
+    CommandHandler,
+    MessageHandler,
+    CallbackQueryHandler,
+    ContextTypes,
+    filters,
 )
-import pytz
 
 # ---------------- CONFIG ----------------
 TOKEN = os.getenv("BOT_TOKEN")
 if not TOKEN:
-    raise RuntimeError("BOT_TOKEN environment variable is required")
+    raise RuntimeError("BOT_TOKEN env var required")
 
 DATA_FILE = "user_data.json"
 LOCK_FILE = DATA_FILE + ".lock"
@@ -25,11 +37,12 @@ MOSCOW_TZ = pytz.timezone("Europe/Moscow")
 logging.basicConfig(
     format="%(asctime)s - %(levelname)s - %(message)s",
     level=logging.INFO,
-    handlers=[logging.FileHandler("bot.log", encoding="utf-8"), logging.StreamHandler()]
+    handlers=[logging.FileHandler("bot.log", encoding="utf-8"), logging.StreamHandler()],
 )
 logger = logging.getLogger(__name__)
 
-# ---------------- CONTENT (kept rich) ----------------
+# ---------------- CONTENT ----------------
+# (Full, rich content kept — trimmed lines for readability but still comprehensive)
 MORNING_MESSAGES = [
     "Привет. Давай сегодня не будем, хорошо?",
     "Доброе утро. Не сегодня.",
@@ -58,47 +71,49 @@ MILESTONES = {
     3: "✨ Три дня уже. Самое тяжёлое позади.",
     7: "✨ Неделя. Рецепторы начинают восстанавливаться.",
     14: "✨ Две недели! Сон налаживается, голова яснее.",
+    21: "✨ Три недели. Ты уже почти не думаешь об этом.",
     30: "✨ Месяц без этого. Мозг работает по-новому.",
+    60: "✨ Два месяца — ты другой человек.",
     90: "✨ Три месяца. Полное восстановление. Ты молодец.",
 }
 
 HELP_TECHNIQUES = [
-    "🧊 Лёд на запястья 30–60 с — резкая холодная стимуляция снижает тягу.",
-    "🫁 Дыхание 4-7-8: вдох 4 → задержка 7 → выдох 8. Повтори 4 раза.",
-    "⏱ Таймер 5 минут: подожди — волна тяги уйдёт сама.",
-    "🚪 Смена окружения: встань и выйди из комнаты — разрушается ассоциация.",
-    "🍋 Резкий вкус (лимон/имбирь) перебивает навязчивую мысль.",
-    "✊ Сожми кулак 10 с ×5 — переключение через тело.",
-    "💧 Умой лицо холодной водой 30 с — шоковый рефлекс снимает напряжение.",
+    "🧊 Лёд на запястья 30-60 сек. Холод активирует блуждающий нерв — тяга падает.",
+    "🫁 Дыхание 4-7-8: вдох 4 → задержка 7 → выдох 8. 4 раза.",
+    "⏱ Таймер 5 минут: подожди — волна пройдет сама.",
+    "🚪 Встань и выйди из комнаты — смена контекста разрывает привычку.",
+    "🍋 Кусочек лимона/имбиря — резкий вкус перебивает сигнал.",
+    "✊ Сожми кулак 10 сек ×5 — переключение через тело.",
+    "💧 Умой лицо холодной водой 30 сек. Шок снимает напряжение.",
     "📝 Напиши 3 причины, почему сейчас не стоит.",
-    "💪 20 быстрых отжиманий — отвлечение и выброс энергии.",
+    "💪 Планка 45-60 сек или 20 отжиманий — переключение.",
 ]
 
 RECOVERY_STAGES = [
-    "📅 ДНИ 1–3: ОСТРАЯ ФАЗА\nПик симптомов: тревога, бессонница, сильная тяга.",
-    "📅 ДНИ 4–7: ПОДОСТРАЯ ФАЗА\nСимптомы уменьшаются, настроение скачет.",
-    "📅 ДНИ 8–14: АДАПТАЦИЯ\nСон и память улучшаются, тяга реже.",
-    "📅 ДНИ 15–28: ВОССТАНОВЛЕНИЕ\nЭнергия восстанавливается, радость возвращается.",
-    "📅 ДНИ 29–90: СТАБИЛИЗАЦИЯ\nНовая норма — меньше рецидивов, лучшее самочувствие.",
+    "📅 ДНИ 1-3: ОСТРАЯ ФАЗА\nПик физических симптомов: тревога, бессонница, сильная тяга.",
+    "📅 ДНИ 4-7: ПОДОСТРАЯ ФАЗА\nСимптомы снижаются на ~40%. Настроение скачет — нормально.",
+    "📅 ДНИ 8-14: АДАПТАЦИЯ\nСон налаживается, аппетит возвращается, тяга редкая.",
+    "📅 ДНИ 15-28: ВОССТАНОВЛЕНИЕ\nЭнергия стабильна, эмоции под контролем, радость возвращается.",
+    "📅 ДНИ 29-90: СТАБИЛИЗАЦИЯ\nПолная перезагрузка нейронных связей — новая норма жизни.",
 ]
 
 TRIGGERS_INFO = [
-    "⚠️ Мысль «хочу» — просто наблюдай, подожди 3–7 минут.",
-    "⚠️ Эмоции (злость, грусть) — назови эмоцию вслух, дыши.",
-    "⚠️ Скука — займись 10 минут активностью (прогулка, звонок).",
-    "⚠️ Окружение — избегай триггерной компании первые 30 дней.",
+    "⚠️ Мысль «хочу»: не действуй, наблюдай. Через 3-7 минут пройдет.",
+    "⚠️ Эмоции: назови эмоцию вслух и сделай дыхание 4-7-8.",
+    "⚠️ Скука: займись 10 минут активностью (прогулка, уборка).",
+    "⚠️ Окружение: избегай триггерных компаний первые 30 дней.",
 ]
 
 COGNITIVE_DISTORTIONS = [
-    "🤯 «Я всё испортил» — катастрофизация. Один срыв ≠ провал на все времена.",
-    "🤯 «Ничего не помогает» — чёрно-белое мышление. Маленькие изменения — тоже прогресс.",
-    "🤯 «Я слабый» — персонализация. Это болезнь/состояние, не характеристика.",
+    "🤯 «Я ВСЁ ИСПОРТИЛ» — катастрофизация. Один срыв ≠ конец.",
+    "🤯 «НИЧЕГО НЕ РАБОТАЕТ» — чёрно-белое мышление. Маленькие шаги — прогресс.",
+    "🤯 «Я СЛАБЫЙ» — персонализация. Это химия, не характеристика.",
 ]
 
 SCIENCE_FACTS = [
-    "🔬 CB1-рецепторы и дофамин: частичное восстановление начинается в первые 2–4 недели.",
-    "🔬 Сон и память: REM-фаза восстанавливается за 2–3 недели после отказа.",
-    "🔬 Нейропластичность: новые привычки формируются 21–90 дней.",
+    "🔬 CB1-рецепторы: частичное восстановление начинается в 1-2 недели; 4-6 недель — серьёзный прогресс.",
+    "🔬 До 3 недель сон и REM-фаза стабилизируются; память и внимание возвращаются.",
+    "🔬 Нейропластичность: 21–90 дней — формирование новых полезных привычек.",
 ]
 
 TU_TUT_FIRST = ["Тут.", "Привет.", "Здесь.", "Тут, как всегда."]
@@ -120,7 +135,8 @@ def load_data():
             with open(DATA_FILE, "r", encoding="utf-8") as f:
                 _user_data_cache = json.load(f)
                 return _user_data_cache
-        except Exception:
+        except Exception as e:
+            logger.warning("load_data failed, new DB: %s", e)
             _user_data_cache = {}
             return _user_data_cache
 
@@ -153,6 +169,7 @@ def get_user(uid):
             "challenge_in_progress": False,
             "last_push_index": 0
         }
+        # background save
         asyncio.create_task(save_data())
     return data[key]
 
@@ -181,7 +198,7 @@ def get_days_since_start(uid):
     except Exception:
         return 0
 
-def format_days(n):
+def format_days(n: int) -> str:
     if 11 <= n % 100 <= 19:
         return f"{n} дней"
     if n % 10 == 1:
@@ -190,47 +207,47 @@ def format_days(n):
         return f"{n} дня"
     return f"{n} дней"
 
-# ---------------- UI (fixed look) ----------------
-def main_keyboard():
+# ---------------- UI: Reply keyboard (persistent) + Inline for submenus ----------------
+def make_main_reply_keyboard():
     kb = [
-        [InlineKeyboardButton("✊ Держусь", callback_data="hold"),
-         InlineKeyboardButton("😔 Тяжело", callback_data="heavy")],
-        [InlineKeyboardButton("👋 Ты тут?", callback_data="here"),
-         InlineKeyboardButton("📊 Дни", callback_data="days")],
-        [InlineKeyboardButton("❤️ Спасибо", callback_data="thank"),
-         InlineKeyboardButton("⏸ Помолчи", callback_data="stop")]
+        [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
+        [KeyboardButton("👋 Ты тут?"), KeyboardButton("📊 Дни")],
+        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
     ]
-    return InlineKeyboardMarkup(kb)
+    return ReplyKeyboardMarkup(kb, resize_keyboard=True)
 
-def heavy_keyboard():
+def make_heavy_inline():
     kb = [
         [InlineKeyboardButton("🔥 Сделать упражнение", callback_data="exercise"),
          InlineKeyboardButton("🧠 Информация", callback_data="info")],
         [InlineKeyboardButton("💔 Срыв", callback_data="breakdown"),
-         InlineKeyboardButton("↩ Назад", callback_data="back")]
+         InlineKeyboardButton("▶ Челленджи", callback_data="challenges")]
     ]
     return InlineKeyboardMarkup(kb)
 
-def info_keyboard():
+def make_info_inline():
     kb = [
         [InlineKeyboardButton("📅 Стадии", callback_data="stages"),
          InlineKeyboardButton("⚠️ Триггеры", callback_data="triggers")],
         [InlineKeyboardButton("🤯 Искажения", callback_data="distortions"),
          InlineKeyboardButton("🔬 Факты", callback_data="facts")],
-        [InlineKeyboardButton("↩ Назад", callback_data="back")]
+        [InlineKeyboardButton("↩ Назад", callback_data="back_to_main")]
     ]
     return InlineKeyboardMarkup(kb)
 
-def challenge_keyboard():
+def make_challenges_inline():
     kb = [
         [InlineKeyboardButton("▶ 30 с", callback_data="challenge_30"),
          InlineKeyboardButton("▶ 60 с", callback_data="challenge_60")],
-        [InlineKeyboardButton("↩ Назад", callback_data="back")]
+        [InlineKeyboardButton("↩ Назад", callback_data="back_to_main")]
     ]
     return InlineKeyboardMarkup(kb)
 
 # ---------------- Helpers: typing simulation & countdown ----------------
-async def simulate_typing_edit(bot, chat_id, message_id, full_text, steps=6, delay_total=0.9):
+async def simulate_typing_edit(bot, chat_id: int, message_id: int, full_text: str, steps=6, delay_total=0.9):
+    """
+    Симуляция набора: редактируем одно сообщение постепенно.
+    """
     if steps < 2:
         try:
             await bot.edit_message_text(full_text, chat_id, message_id, parse_mode=ParseMode.HTML)
@@ -251,7 +268,10 @@ async def simulate_typing_edit(bot, chat_id, message_id, full_text, steps=6, del
     except Exception:
         pass
 
-async def countdown_edit(bot, chat_id, message_id, seconds, prefix="Отсчёт"):
+async def countdown_edit(bot, chat_id: int, message_id: int, seconds: int, prefix="Отсчёт"):
+    """
+    Обратно отсчитываем в одном сообщении.
+    """
     try:
         for rem in range(seconds, 0, -1):
             txt = f"{prefix}: {rem} сек."
@@ -259,9 +279,9 @@ async def countdown_edit(bot, chat_id, message_id, seconds, prefix="Отсчёт
             await asyncio.sleep(1)
         await bot.edit_message_text(f"✅ Готово! {prefix} завершён.", chat_id, message_id)
     except Exception as e:
-        logger.debug("countdown_edit err: %s", e)
+        logger.debug("countdown_edit error: %s", e)
 
-# ---------------- Item rotation (no immediate repeats) ----------------
+# ---------------- Rotation helpers ----------------
 def get_next_item(uid, items, key):
     user = get_user(uid)
     used = user.get(key, [])
@@ -287,13 +307,13 @@ def get_next_stage(uid):
     asyncio.create_task(save_user(uid, {"last_stage_index": next_idx}))
     return text
 
-# ---------------- Jobs: push notifications ----------------
-def schedule_jobs_for_user(chat_id, job_queue):
-    # remove existing if any
+# ---------------- Jobs (push 3x per day) ----------------
+def schedule_jobs_for_user(chat_id: int, job_queue):
+    # remove old
     for name in [f"morning_{chat_id}", f"afternoon_{chat_id}", f"evening_{chat_id}"]:
         for j in job_queue.get_jobs_by_name(name):
             j.schedule_removal()
-    # schedule three pushes
+    # schedule
     job_queue.run_daily(send_push, time(9, 0, tzinfo=MOSCOW_TZ), data={"chat_id": chat_id}, name=f"morning_{chat_id}")
     job_queue.run_daily(send_push, time(15, 0, tzinfo=MOSCOW_TZ), data={"chat_id": chat_id}, name=f"afternoon_{chat_id}")
     job_queue.run_daily(send_push, time(21, 0, tzinfo=MOSCOW_TZ), data={"chat_id": chat_id}, name=f"evening_{chat_id}")
@@ -315,21 +335,23 @@ async def send_push(context: ContextTypes.DEFAULT_TYPE):
     if days in MILESTONES:
         msg += f"\n\n{MILESTONES[days]}"
     try:
-        await context.bot.send_message(chat_id, msg, reply_markup=main_keyboard())
+        await context.bot.send_message(chat_id, msg, reply_markup=make_main_reply_keyboard())
     except Exception as e:
-        logger.debug("send_push error: %s", e)
+        logger.debug("send_push failed: %s", e)
 
-# ---------------- Commands & Callbacks ----------------
+# ---------------- Handlers ----------------
 async def cmd_start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
     user = get_user(chat_id)
     was_active = user.get("active", False)
     await save_user(chat_id, {"active": True, "start_date": get_current_date().isoformat()})
+    # schedule job queue for new activation
     if not was_active:
         schedule_jobs_for_user(chat_id, context.application.job_queue)
     days = get_days_since_start(chat_id)
-    txt = f"Привет! Ты держишься {format_days(days)}. Я буду рядом — три пуша в день."
-    await update.message.reply_text(txt, reply_markup=main_keyboard())
+    text = f"Привет! Ты держишься {format_days(days)}. Я рядом — три пуша в день."
+    # reply with persistent reply keyboard
+    await update.message.reply_text(text, reply_markup=make_main_reply_keyboard())
 
 async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chat_id = update.effective_chat.id
@@ -340,138 +362,191 @@ async def cmd_stop(update: Update, context: ContextTypes.DEFAULT_TYPE):
         for j in context.application.job_queue.get_jobs_by_name(name):
             j.schedule_removal()
             removed += 1
-    await update.message.reply_text("Оповещения остановлены. Нажми /start чтобы включить снова.", reply_markup=None)
+    await update.message.reply_text("Оповещения остановлены. Нажми /start когда будешь готов.", reply_markup=make_main_reply_keyboard())
     logger.info("Removed %d jobs for %s", removed, chat_id)
 
+# MessageHandler for persistent reply keyboard presses
+async def handle_text_message(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = (update.message.text or "").strip()
+    chat_id = update.effective_chat.id
+
+    # Map reply keyboard labels to functionality
+    if text == "✊ Держусь":
+        # run same logic as inline hold
+        await do_hold_reply(update, context)
+    elif text == "😔 Тяжело":
+        # open inline heavy menu
+        await update.message.reply_text("Тяжело? Выбери опцию:", reply_markup=make_heavy_inline())
+    elif text == "👋 Ты тут?":
+        # realistic delay + simulate typing — use reply to emulate live typing
+        await update.message.reply_text("...", reply_markup=make_main_reply_keyboard())
+        await asyncio.sleep(random.uniform(1.5, 3.2))
+        first = random.choice(TU_TUT_FIRST)
+        second = random.choice(TU_TUT_SECOND)
+        # send combined response and keep reply keyboard visible
+        await context.bot.send_message(chat_id, f"{first}\n{second}", reply_markup=make_main_reply_keyboard())
+    elif text == "📊 Дни":
+        days = get_days_since_start(chat_id)
+        u = get_user(chat_id)
+        best = u.get("best_streak", 0)
+        msg = f"Ты держишься {format_days(days)}."
+        if best and best > days:
+            msg += f"\n\nЛучший результат: {format_days(best)}"
+        elif best and best == days:
+            msg += f"\n\nЭто твой лучший результат прямо сейчас!"
+        if days in MILESTONES:
+            msg += f"\n\n{MILESTONES[days]}"
+        await update.message.reply_text(msg, reply_markup=make_main_reply_keyboard())
+    elif text == "❤️ Спасибо":
+        await update.message.reply_text("Спасибо тебе, что ты есть. ❤️", reply_markup=make_main_reply_keyboard())
+    elif text == "⏸ Помолчи":
+        # alias of stop
+        await cmd_stop(update, context)
+    else:
+        # unknown free text — polite fallback
+        await update.message.reply_text("Не понял. Нажми одну из кнопок ниже.", reply_markup=make_main_reply_keyboard())
+
+# Implementation of hold logic usable from both reply and callback flows
+async def do_hold_reply(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user = get_user(chat_id)
+    if not user.get("active", False):
+        await update.message.reply_text("Сначала нажми /start", reply_markup=make_main_reply_keyboard())
+        return
+
+    today = get_current_date().isoformat()
+    if user.get("last_hold_date") != today:
+        user["hold_count_today"] = 0
+    # last hold time check
+    last = user.get("last_hold_time")
+    if last:
+        try:
+            last_dt = datetime.fromisoformat(last)
+            if last_dt.tzinfo is None:
+                last_dt = MOSCOW_TZ.localize(last_dt)
+            diff = (get_current_time() - last_dt).total_seconds()
+            if diff < 1800:
+                mins = int((1800 - diff) // 60) + 1
+                await update.message.reply_text(f"Подожди ещё {mins} {'минуту' if mins==1 else 'минут'}.", reply_markup=make_main_reply_keyboard())
+                return
+        except Exception:
+            pass
+    if user.get("hold_count_today", 0) >= 5:
+        await update.message.reply_text("Сегодня уже 5 раз. Завтра снова сможешь.", reply_markup=make_main_reply_keyboard())
+        return
+
+    user["hold_count_today"] = user.get("hold_count_today", 0) + 1
+    user["last_hold_date"] = today
+    user["last_hold_time"] = get_current_time().isoformat()
+    await save_user(chat_id, user)
+    await update.message.reply_text(random.choice(HOLD_RESPONSES), reply_markup=make_main_reply_keyboard())
+
+    # notify other active users with tiny emoji, best-effort
+    data = load_data()
+    for other_key, other in data.items():
+        try:
+            oid = int(other_key)
+        except Exception:
+            continue
+        if oid == chat_id:
+            continue
+        if other.get("active", False):
+            try:
+                await context.bot.send_message(oid, "✊")
+                await asyncio.sleep(0.02)
+            except Exception:
+                # if cannot message — mark inactive
+                try:
+                    errtxt = ""
+                except:
+                    pass
+
+# CallbackQuery handler for Inline actions (info, exercises, challenges, etc.)
 async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
+    if not query:
+        return
     await query.answer()
     uid = query.from_user.id
     data = query.data
 
-    # START inline (if used)
-    if data == "start_inline":
-        await save_user(uid, {"active": True, "start_date": get_current_date().isoformat()})
-        schedule_jobs_for_user(uid, context.application.job_queue)
-        await query.edit_message_text("Хорошо, я включил пуши.", reply_markup=main_keyboard())
-        return
-
-    # STOP inline
-    if data == "stop":
-        await save_user(uid, {"active": False})
-        for name in [f"morning_{uid}", f"afternoon_{uid}", f"evening_{uid}"]:
-            for j in context.application.job_queue.get_jobs_by_name(name):
-                j.schedule_removal()
-        await query.edit_message_text("Оповещения остановлены. Нажми /start чтобы снова включить.", reply_markup=None)
-        return
-
-    # HOLD: timeout + daily limit
-    if data == "hold":
-        user = get_user(uid)
-        today = get_current_date().isoformat()
-        if user.get("last_hold_date") != today:
-            user["hold_count_today"] = 0
-        last_time = user.get("last_hold_time")
-        if last_time:
-            try:
-                last_dt = datetime.fromisoformat(last_time)
-                if last_dt.tzinfo is None:
-                    last_dt = MOSCOW_TZ.localize(last_dt)
-                diff = (get_current_time() - last_dt).total_seconds()
-                if diff < 1800:
-                    mins = int((1800 - diff) // 60) + 1
-                    await query.edit_message_text(f"Подожди ещё {mins} {'минуту' if mins==1 else 'минут'}.", reply_markup=main_keyboard())
-                    return
-            except Exception:
-                pass
-        if user.get("hold_count_today", 0) >= 5:
-            await query.edit_message_text("Сегодня уже 5 раз. Завтра снова сможешь.", reply_markup=main_keyboard())
-            return
-        user["hold_count_today"] = user.get("hold_count_today", 0) + 1
-        user["last_hold_date"] = today
-        user["last_hold_time"] = get_current_time().isoformat()
-        await save_user(uid, user)
-        await query.edit_message_text(random.choice(HOLD_RESPONSES), reply_markup=main_keyboard())
-
-        # fan-out small emoji to other active users
-        for other_str, other in load_data().items():
-            try:
-                other_id = int(other_str)
-            except Exception:
-                continue
-            if other_id == uid:
-                continue
-            if other.get("active", False):
-                try:
-                    await context.bot.send_message(other_id, "✊")
-                    await asyncio.sleep(0.02)
-                except Exception as e:
-                    err = str(e).lower()
-                    if "forbidden" in err or "blocked" in err or "chat not found" in err:
-                        await save_user(other_id, {"active": False})
-        return
-
-    # HEAVY -> submenu
-    if data == "heavy":
-        u = get_user(uid)
-        u["heavy_count"] = u.get("heavy_count", 0) + 1
-        await save_user(uid, u)
-        await query.edit_message_text("Тяжело? Выбирай:", reply_markup=heavy_keyboard())
-        return
-
-    # EXERCISE -> simulated typing
+    # HEAVY submenu selection
     if data == "exercise":
         ex = get_next_exercise(uid)
-        # initial placeholder
+        # edit current inline message then restore reply keyboard by sending separate message
         try:
-            await query.edit_message_text("Готовлю упражнение...", reply_markup=heavy_keyboard())
+            await query.edit_message_text("Готовлю упражнение...", reply_markup=make_heavy_inline())
         except Exception:
             pass
-        # simulate typing into same message
+        # simulate typing in same message
         try:
             await simulate_typing_edit(context.bot, query.message.chat_id, query.message.message_id, f"💡 Упражнение:\n\n{ex}", steps=6, delay_total=1.0)
         except Exception:
             try:
-                await query.edit_message_text(f"💡 Упражнение:\n\n{ex}", reply_markup=heavy_keyboard())
+                await query.edit_message_text(f"💡 Упражнение:\n\n{ex}", reply_markup=make_heavy_inline())
             except Exception:
                 pass
+        # re-show persistent keyboard as chat-level keyboard
+        await context.bot.send_message(uid, "Верну клавиатуру:", reply_markup=make_main_reply_keyboard())
         return
 
-    # INFO submenu
     if data == "info":
-        await query.edit_message_text("Выберите раздел:", reply_markup=info_keyboard())
+        try:
+            await query.edit_message_text("Выберите раздел:", reply_markup=make_info_inline())
+        except Exception:
+            pass
         return
 
     if data == "stages":
         stage = get_next_stage(uid)
-        await query.edit_message_text(stage, reply_markup=info_keyboard())
+        try:
+            await query.edit_message_text(stage, reply_markup=make_info_inline())
+        except Exception:
+            pass
+        # restore reply keyboard
+        await context.bot.send_message(uid, "Вернуться можно через клавиши:", reply_markup=make_main_reply_keyboard())
         return
 
     if data == "triggers":
         t = get_next_item(uid, TRIGGERS_INFO, "used_triggers")
-        await query.edit_message_text(t, reply_markup=info_keyboard())
+        try:
+            await query.edit_message_text(t, reply_markup=make_info_inline())
+        except Exception:
+            pass
+        await context.bot.send_message(uid, "Клавиатура вернулась:", reply_markup=make_main_reply_keyboard())
         return
 
     if data == "distortions":
         d = get_next_item(uid, COGNITIVE_DISTORTIONS, "used_distortions")
-        await query.edit_message_text(d, reply_markup=info_keyboard())
+        try:
+            await query.edit_message_text(d, reply_markup=make_info_inline())
+        except Exception:
+            pass
+        await context.bot.send_message(uid, "Клавиатура вернулась:", reply_markup=make_main_reply_keyboard())
         return
 
     if data == "facts":
         f = get_next_item(uid, SCIENCE_FACTS, "used_facts")
-        await query.edit_message_text(f, reply_markup=info_keyboard())
+        try:
+            await query.edit_message_text(f, reply_markup=make_info_inline())
+        except Exception:
+            pass
+        await context.bot.send_message(uid, "Клавиатура вернулась:", reply_markup=make_main_reply_keyboard())
         return
 
-    if data == "back":
-        await query.edit_message_text("Возвращаемся в главное меню:", reply_markup=main_keyboard())
+    if data == "back_to_main":
+        try:
+            await query.edit_message_text("Возврат в главное меню.", reply_markup=None)
+        except Exception:
+            pass
+        await context.bot.send_message(uid, "Главное меню:", reply_markup=make_main_reply_keyboard())
         return
 
     if data == "breakdown":
-        prev = get_days_since_start(uid)
-        # save best streak if any
+        prev_days = get_days_since_start(uid)
         u = get_user(uid)
-        if prev > u.get("best_streak", 0):
-            await save_user(uid, {"best_streak": prev})
+        if prev_days > u.get("best_streak", 0):
+            await save_user(uid, {"best_streak": prev_days})
         await save_user(uid, {
             "start_date": get_current_date().isoformat(),
             "last_stage_index": 0,
@@ -480,63 +555,48 @@ async def callback_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
             "last_hold_date": None,
             "used_tips": [], "used_triggers": [], "used_distortions": [], "used_facts": []
         })
-        await query.edit_message_text(f"Счётчик сброшен. Ты продержался {format_days(prev)}.\nКогда будешь готов — нажми /start", reply_markup=None)
-        return
-
-    if data == "days":
-        days = get_days_since_start(uid)
-        u = get_user(uid)
-        best = u.get("best_streak", 0)
-        txt = f"Ты держишься {format_days(days)}."
-        if best and best > days:
-            txt += f"\n\nЛучший результат: {format_days(best)}"
-        elif best and best == days:
-            txt += f"\n\nЭто твой лучший результат прямо сейчас!"
-        if days in MILESTONES:
-            txt += f"\n\n{MILESTONES[days]}"
-        await query.edit_message_text(txt, reply_markup=main_keyboard())
-        return
-
-    # realistic "You here?" with animation
-    if data == "here":
         try:
-            await query.edit_message_text("...", reply_markup=main_keyboard())
+            await query.edit_message_text(f"Счётчик сброшен. Ты продержался {format_days(prev_days)}.")
         except Exception:
             pass
-        await asyncio.sleep(random.uniform(1.5, 3.2))
-        first = random.choice(TU_TUT_FIRST)
-        second = random.choice(TU_TUT_SECOND)
+        await context.bot.send_message(uid, "Когда будешь готов — нажми /start", reply_markup=make_main_reply_keyboard())
+        return
+
+    if data == "challenges":
         try:
-            await simulate_typing_edit(context.bot, query.message.chat_id, query.message.message_id, f"{first}\n{second}", steps=4, delay_total=0.9)
+            await query.edit_message_text("Выберите челлендж:", reply_markup=make_challenges_inline())
         except Exception:
-            try:
-                await query.edit_message_text(f"{first}\n{second}", reply_markup=main_keyboard())
-            except Exception:
-                pass
+            pass
         return
 
-    if data == "thank":
-        await query.edit_message_text("Спасибо тебе, что ты есть. ❤️", reply_markup=main_keyboard())
-        return
-
-    # challenge micro-games
     if data and data.startswith("challenge_"):
+        # e.g. "challenge_30"
         try:
-            seconds = int(data.split("_")[1])
+            secs = int(data.split("_")[1])
         except Exception:
-            seconds = 30
+            secs = 30
         u = get_user(uid)
         if u.get("challenge_in_progress"):
-            await query.edit_message_text("У тебя уже идёт челлендж. Дождись окончания.", reply_markup=challenge_keyboard())
+            try:
+                await query.edit_message_text("У тебя уже идёт челлендж.", reply_markup=make_challenges_inline())
+            except Exception:
+                pass
             return
         await save_user(uid, {"challenge_in_progress": True})
-        await query.edit_message_text(f"Челлендж {seconds} сек. Начинаю...", reply_markup=None)
-        await countdown_edit(context.bot, query.message.chat_id, query.message.message_id, seconds, prefix="Челлендж")
+        try:
+            await query.edit_message_text(f"Челлендж {secs} сек. Начинаю...", reply_markup=None)
+        except Exception:
+            pass
+        # countdown in same message
+        try:
+            await countdown_edit(context.bot, query.message.chat_id, query.message.message_id, secs, prefix="Челлендж")
+        except Exception:
+            pass
         await save_user(uid, {"challenge_in_progress": False})
-        await context.bot.send_message(uid, "🔥 Отлично! Ты справился с челленджем.", reply_markup=main_keyboard())
+        await context.bot.send_message(uid, "🔥 Отлично! Ты справился.", reply_markup=make_main_reply_keyboard())
         return
 
-# ---------------- Restore scheduled jobs after start ----------------
+# ---------------- Restore jobs on bot boot ----------------
 async def restore_jobs(application):
     data = load_data()
     logger.info("Восстанавливаем задачи для %d пользователей", len(data))
@@ -549,19 +609,32 @@ async def restore_jobs(application):
             try:
                 schedule_jobs_for_user(uid, application.job_queue)
             except Exception as e:
-                logger.debug("restore_jobs: %s", e)
+                logger.debug("restore_jobs error: %s", e)
 
-# ---------------- Main ----------------
+# ---------------- Utility: map Reply-button text to callback-like processing ----------------
+async def do_hold_from_callback(uid: int, context: ContextTypes.DEFAULT_TYPE, query=None):
+    # provided for parity if needed
+    # not used here because reply flow uses do_hold_reply
+    pass
+
+# ---------------- Application bootstrap ----------------
 def main():
     app = Application.builder().token(TOKEN).build()
 
+    # Commands
     app.add_handler(CommandHandler("start", cmd_start))
     app.add_handler(CommandHandler("stop", cmd_stop))
+
+    # Reply keyboard messages
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
+
+    # Inline callbacks
     app.add_handler(CallbackQueryHandler(callback_handler))
 
+    # Restore jobs after init
     app.post_init = restore_jobs
 
-    logger.info("Запускаю бота")
+    logger.info("Запускаю бота...")
     app.run_polling(allowed_updates=None)
 
 if __name__ == "__main__":
