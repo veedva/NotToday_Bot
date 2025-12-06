@@ -3,7 +3,7 @@ import random
 import json
 import os
 import asyncio
-from datetime import datetime, time, date, timedelta
+from datetime import datetime, time, date
 from filelock import FileLock
 from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes, ConversationHandler
@@ -170,9 +170,6 @@ HELP_ADVICE_BY_DAY = [
     "90+ дней: точка невозврата пройдена. Мозг работает как новый. Теперь просто живи и береги себя."
 ]
 
-# === НОВЫЙ РАЗДЕЛ "ТЯЖЕЛО" ===
-
-# Практические техники (разбиты по категориям)
 BREATHING_TECHNIQUES = [
     "🧘 4-7-8 Дыхание: Вдох на 4 → Задержка на 7 → Выдох на 8. 4 цикла снижают тревогу за 1 минуту.",
     "🧘 Квадратное дыхание: 4 вдох → 4 задержка → 4 выдох → 4 пауза. Балансирует нервную систему.",
@@ -204,7 +201,6 @@ EMERGENCY_HELP = [
     "⚡ При непреодолимой тяге: Быстрые отжимания до отказа. Адреналин вытесняет дофаминовый голод."
 ]
 
-# Научная информация
 BRAIN_NEUROTRANSMITTERS = [
     "🧬 Дофамин: При отмене падает на 50-70%. Восстановление начинается на 7-14 день.",
     "🧬 Серотонин: Связан с настроением и сном. Травка истощает запасы. Восстановление к 21 дню.",
@@ -240,7 +236,6 @@ BRAIN_RECOVERY = [
     "🔄 90+ дней: Новая базовая линия. Мозг производит собственные каннабиноиды."
 ]
 
-# Когнитивные искажения с детальным разбором
 COGNITIVE_DISTORTIONS_DETAILED = {
     "⚫ Чёрно-белое мышление": {
         "definition": "Видение ситуации только в крайностях, без полутонов.",
@@ -280,7 +275,6 @@ COGNITIVE_DISTORTIONS_DETAILED = {
     }
 }
 
-# Физическое здоровье
 NUTRITION_TIPS = [
     "🍎 Первые дни: Жидкая пища — бульоны, смузи, йогурты",
     "🍎 Белок: Яйца, курица, рыба — для восстановления нейротрансмиттеров",
@@ -312,7 +306,6 @@ ENERGY_BOOSTERS = [
     "⚡ Белок + сложные углеводы (яйцо + овсянка)"
 ]
 
-# Сон и восстановление
 SLEEP_TIPS = [
     "🛏 За 2 часа до сна: Никаких экранов. Синий свет подавляет мелатонин",
     "🛏 Температура в комнате: 18-20°C. Прохлада улучшает качество сна",
@@ -336,8 +329,6 @@ EVENING_RITUAL = [
     "🌙 22:00 — Дыхание 4-7-8 в кровати",
     "🌙 22:10 — Сон"
 ]
-
-# === КЛАВИАТУРЫ ===
 
 def get_main_keyboard():
     return ReplyKeyboardMarkup([
@@ -413,9 +404,6 @@ def get_diary_notes_keyboard():
         [KeyboardButton("💭 Заметка")],
         [KeyboardButton("↩ Пропустить")]
     ], resize_keyboard=True)
-
-def get_advice_keyboard():
-    return ReplyKeyboardMarkup([[KeyboardButton("↩ Назад")]], resize_keyboard=True)
 
 def get_exercise_keyboard():
     return ReplyKeyboardMarkup([
@@ -714,8 +702,6 @@ async def night_job(context):
         return
     await send_message(context.bot, chat_id, random.choice(NIGHT_MESSAGES))
 
-# === ОСНОВНЫЕ КОМАНДЫ ===
-
 async def start_command(update, context):
     chat_id = update.effective_chat.id
     data, user = get_user_data(chat_id)
@@ -760,13 +746,10 @@ async def stop_command(update, context):
     
     await send_message(context.bot, chat_id, "Уведомления остановлены.\nКогда будешь готов — жми ▶ Начать", get_start_keyboard(), False)
 
-# === ОБРАБОТЧИКИ РАЗДЕЛА "ТЯЖЕЛО" ===
-
 async def handle_heavy(update, context):
     chat_id = update.effective_chat.id
     days = get_days_since_start(chat_id)
     
-    # Персонализированное приветствие
     if days == 0:
         greeting = "Первый день — самый важный. Я здесь, чтобы помочь."
     elif days <= 3:
@@ -782,7 +765,6 @@ async def handle_heavy(update, context):
     
     await send_message(context.bot, chat_id, f"{greeting}\n\nЧто тебе нужно прямо сейчас?", get_heavy_main_keyboard(), False)
 
-# Основные категории
 async def handle_practice(update, context):
     await send_message(context.bot, update.effective_chat.id, 
                       "💪 Практические техники самопомощи\nВыбери категорию:", 
@@ -813,7 +795,6 @@ async def handle_sleep(update, context):
                       "😴 Сон и восстановление\nКачество сна = качество выздоровления:",
                       get_sleep_keyboard(), False)
 
-# Практика
 async def handle_breathing(update, context):
     technique = random.choice(BREATHING_TECHNIQUES)
     await send_message(context.bot, update.effective_chat.id,
@@ -854,7 +835,6 @@ async def handle_all_exercises(update, context):
     
     await send_message(context.bot, update.effective_chat.id, text, get_practice_keyboard(), False)
 
-# Наука
 async def handle_brain_neuro(update, context):
     fact = random.choice(BRAIN_NEUROTRANSMITTERS)
     await send_message(context.bot, update.effective_chat.id,
@@ -908,7 +888,6 @@ async def handle_chemistry(update, context):
     
     await send_message(context.bot, update.effective_chat.id, text, get_science_keyboard(), False)
 
-# Когнитивные искажения
 async def handle_distortion_detail(update, context):
     text = update.message.text.strip()
     
@@ -937,7 +916,6 @@ async def handle_all_distortions(update, context):
     
     await send_message(context.bot, update.effective_chat.id, text, get_distortions_keyboard(), False)
 
-# Дневник настроения
 async def handle_today_state(update, context):
     chat_id = update.effective_chat.id
     data, user = get_user_data(chat_id)
@@ -965,7 +943,6 @@ async def handle_today_state(update, context):
         await send_message(context.bot, chat_id, text, keyboard, False)
         return DIARY_NOTES
     
-    # Начинаем новую запись
     user["diary_temp"] = {"date": today}
     data[str(chat_id)] = user
     save_data(data)
@@ -1095,7 +1072,6 @@ async def handle_diary_notes(update, context):
         data, user = get_user_data(chat_id)
         
         if text == "✏️ Изменить запись":
-            # Начинаем новую запись
             today = get_current_date().isoformat()
             user["diary_temp"] = {"date": today}
             if today in user.get("diary_entries", {}):
@@ -1108,7 +1084,6 @@ async def handle_diary_notes(update, context):
                               get_diary_rating_keyboard(), False)
             return DIARY_MOOD
         
-        # Сохраняем запись
         today = get_current_date().isoformat()
         if "diary_temp" in user:
             entry = user["diary_temp"]
@@ -1139,14 +1114,12 @@ async def handle_diary_notes(update, context):
         return ConversationHandler.END
     
     else:
-        # Сохраняем заметку
         data, user = get_user_data(chat_id)
         if "diary_temp" in user:
             user["diary_temp"]["notes"] = text
             data[str(chat_id)] = user
             save_data(data)
         
-        # Сохраняем полную запись
         today = get_current_date().isoformat()
         if "diary_temp" in user:
             entry = user["diary_temp"]
@@ -1315,7 +1288,6 @@ async def handle_thoughts_input(update, context):
     
     return ConversationHandler.END
 
-# Физическое здоровье
 async def handle_nutrition(update, context):
     tips = random.sample(NUTRITION_TIPS, 3)
     text = "🍎 Питание для восстановления:\n\n"
@@ -1367,7 +1339,6 @@ async def handle_daily_checklist(update, context):
     
     await send_message(context.bot, update.effective_chat.id, text, get_physical_keyboard(), False)
 
-# Сон
 async def handle_sleep_tips(update, context):
     tips = random.sample(SLEEP_TIPS, 3)
     text = "🛏 Советы для качественного сна:\n\n"
@@ -1447,8 +1418,6 @@ async def handle_sleep_tracker(update, context):
         text = "📊 Заполни «Сегодняшнее состояние», чтобы отслеживать сон."
     
     await send_message(context.bot, chat_id, text, get_sleep_keyboard(), False)
-
-# === СУЩЕСТВУЮЩИЕ ОБРАБОТЧИКИ ===
 
 async def handle_hold(update, context):
     chat_id = update.effective_chat.id
@@ -1542,9 +1511,9 @@ async def handle_reflection(update, context):
 async def handle_body_info(update, context):
     days = get_days_since_start(update.effective_chat.id)
     advice = get_advice_for_day(days)
-    await send_message(context.bot, update.effective_chat.id, advice, get_advice_keyboard(), False)
+    await send_message(context.bot, update.effective_chat.id, advice, get_friend_help_keyboard(), False)
 
-async def handle_science(update, context):
+async def handle_science_old(update, context):
     fact = random.choice(EVIDENCE_BASED_FACTS)
     await send_message(context.bot, update.effective_chat.id, fact, save=False)
 
@@ -1570,13 +1539,27 @@ async def handle_protocol(update, context):
         await update.message.reply_text(protocol, reply_markup=get_heavy_main_keyboard())
     return ConversationHandler.END
 
+async def handle_exercise_old(update, context):
+    exercise = get_next_exercise(update.effective_chat.id)
+    await send_message(context.bot, update.effective_chat.id, exercise, get_exercise_keyboard(), False)
+
 async def handle_another_exercise(update, context):
     exercise = get_next_exercise(update.effective_chat.id)
     await update.message.reply_text(exercise, reply_markup=get_exercise_keyboard())
 
+async def handle_cognitive_old(update, context):
+    cognitive = get_next_cognitive(update.effective_chat.id)
+    await send_message(context.bot, update.effective_chat.id, cognitive, get_cognitive_keyboard(), False)
+    return COGNITIVE_STATE
+
 async def handle_another_cognitive(update, context):
     cognitive = get_next_cognitive(update.effective_chat.id)
     await update.message.reply_text(cognitive, reply_markup=get_cognitive_keyboard())
+
+async def handle_friend_help(update, context):
+    advice = get_next_friend_help(update.effective_chat.id)
+    await send_message(context.bot, update.effective_chat.id, advice, get_friend_help_keyboard(), False)
+    return FRIEND_HELP_STATE
 
 async def handle_another_friend_help(update, context):
     advice = get_next_friend_help(update.effective_chat.id)
@@ -1700,12 +1683,9 @@ async def restore_jobs_on_startup(application):
         except:
             pass
 
-# === MAIN ===
-
 def main():
     application = Application.builder().token(TOKEN).build()
     
-    # Основные ConversationHandler
     hold_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^✊ Держусь$"), handle_hold)],
         states={REFLECTION: [MessageHandler(filters.TEXT & ~filters.COMMAND, handle_reflection)]},
@@ -1720,7 +1700,6 @@ def main():
         conversation_timeout=300
     )
     
-    # Дневник настроения
     diary_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^📝 Сегодняшнее состояние$"), handle_today_state)],
         states={
@@ -1734,7 +1713,6 @@ def main():
         conversation_timeout=600
     )
     
-    # Запись мыслей
     thoughts_conv = ConversationHandler(
         entry_points=[MessageHandler(filters.Regex("^💭 Записать мысли$"), handle_write_thoughts)],
         states={
@@ -1744,9 +1722,8 @@ def main():
         conversation_timeout=300
     )
     
-    # Старые ConversationHandler (оставлены для совместимости)
     cognitive_conv = ConversationHandler(
-        entry_points=[MessageHandler(filters.Regex("^🤯 Когнитивные искажения$"), handle_distortions)],
+        entry_points=[MessageHandler(filters.Regex("^🤯 Когнитивные искажения$"), handle_cognitive_old)],
         states={
             COGNITIVE_STATE: [MessageHandler(filters.Regex("^🔄 Другое искажение$"), handle_another_cognitive)]
         },
@@ -1763,11 +1740,8 @@ def main():
         conversation_timeout=300
     )
     
-    # Основные команды
     application.add_handler(CommandHandler("start", start_command))
     application.add_handler(CommandHandler("stop", stop_command))
-    
-    # ConversationHandler
     application.add_handler(hold_conv)
     application.add_handler(breakdown_conv)
     application.add_handler(diary_conv)
@@ -1775,66 +1749,55 @@ def main():
     application.add_handler(cognitive_conv)
     application.add_handler(friend_help_conv)
     
-    # Обработчики раздела "Тяжело"
     application.add_handler(MessageHandler(filters.Regex("^😔 Тяжело$"), handle_heavy))
-    
-    # Основные категории
     application.add_handler(MessageHandler(filters.Regex("^💪 Практика$"), handle_practice))
     application.add_handler(MessageHandler(filters.Regex("^🧠 Наука и факты$"), handle_science))
     application.add_handler(MessageHandler(filters.Regex("^🤯 Искажения$"), handle_distortions))
     application.add_handler(MessageHandler(filters.Regex("^🍽 Физическое$"), handle_physical))
     application.add_handler(MessageHandler(filters.Regex("^😴 Сон и восстановление$"), handle_sleep))
     
-    # Практика
     application.add_handler(MessageHandler(filters.Regex("^🧘 Дыхание и релаксация$"), handle_breathing))
     application.add_handler(MessageHandler(filters.Regex("^🖐 Микро-действия$"), handle_micro_actions))
     application.add_handler(MessageHandler(filters.Regex("^🧠 Когнитивные техники$"), handle_cognitive_tech))
     application.add_handler(MessageHandler(filters.Regex("^⚡ Экстренная помощь$"), handle_emergency_help))
     application.add_handler(MessageHandler(filters.Regex("^📚 Все упражнения$"), handle_all_exercises))
     
-    # Наука
     application.add_handler(MessageHandler(filters.Regex("^🧬 Мозг и нейротрансмиттеры$"), handle_brain_neuro))
     application.add_handler(MessageHandler(filters.Regex("^💊 Физиология и здоровье$"), handle_physiology))
     application.add_handler(MessageHandler(filters.Regex("^📊 Исследования и факты$"), handle_research))
     application.add_handler(MessageHandler(filters.Regex("^🔄 Восстановление мозга$"), handle_brain_recovery))
     application.add_handler(MessageHandler(filters.Regex("^🧪 Химия зависимости$"), handle_chemistry))
     
-    # Искажения
     for distortion in COGNITIVE_DISTORTIONS_DETAILED.keys():
         application.add_handler(MessageHandler(filters.Regex(f"^{distortion}$"), handle_distortion_detail))
     application.add_handler(MessageHandler(filters.Regex("^🎯 Все искажения$"), handle_all_distortions))
     
-    # Дневник (кроме ConversationHandler)
     application.add_handler(MessageHandler(filters.Regex("^📈 История прогресса$"), handle_progress_history))
     application.add_handler(MessageHandler(filters.Regex("^🎯 Цели на день$"), handle_daily_goals))
     application.add_handler(MessageHandler(filters.Regex("^✨ Мои победы$"), handle_my_wins))
     
-    # Физическое
     application.add_handler(MessageHandler(filters.Regex("^🍎 Питание$"), handle_nutrition))
     application.add_handler(MessageHandler(filters.Regex("^💧 Гидратация$"), handle_hydration))
     application.add_handler(MessageHandler(filters.Regex("^🏃 Мини-рутина$"), handle_mini_routine))
     application.add_handler(MessageHandler(filters.Regex("^⚡ Энергия$"), handle_energy))
     application.add_handler(MessageHandler(filters.Regex("^📋 Чек-лист дня$"), handle_daily_checklist))
     
-    # Сон
     application.add_handler(MessageHandler(filters.Regex("^🛏 Советы по сну$"), handle_sleep_tips))
     application.add_handler(MessageHandler(filters.Regex("^⏱ Режим дня$"), handle_sleep_schedule))
     application.add_handler(MessageHandler(filters.Regex("^🌙 Вечерний ритуал$"), handle_evening_ritual))
     application.add_handler(MessageHandler(filters.Regex("^😴 Техники засыпания$"), handle_sleep_techniques))
     application.add_handler(MessageHandler(filters.Regex("^📊 Трекер сна$"), handle_sleep_tracker))
     
-    # Старые обработчики (для совместимости)
-    application.add_handler(MessageHandler(filters.Regex("^🔥 Упражнение$"), handle_breathing))
+    application.add_handler(MessageHandler(filters.Regex("^🔥 Упражнение$"), handle_exercise_old))
     application.add_handler(MessageHandler(filters.Regex("^🔄 Другое упражнение$"), handle_another_exercise))
     application.add_handler(MessageHandler(filters.Regex("^🧠 Что происходит с телом$"), handle_body_info))
     application.add_handler(MessageHandler(filters.Regex("^📊 Дни$"), handle_days))
     application.add_handler(MessageHandler(filters.Regex("^👋 Ты тут\?$"), handle_are_you_here))
     application.add_handler(MessageHandler(filters.Regex("^❤️ Спасибо$"), handle_thank_you))
     application.add_handler(MessageHandler(filters.Regex("^↩ Назад$"), handle_back))
-    application.add_handler(MessageHandler(filters.Regex("^📚 Наука$"), handle_science))
+    application.add_handler(MessageHandler(filters.Regex("^📚 Наука$"), handle_science_old))
     application.add_handler(MessageHandler(filters.Regex("^📈 Стадии$"), handle_stages))
     
-    # Протоколы (старые)
     protocol_conv = ConversationHandler(
         entry_points=[
             MessageHandler(filters.Regex("^💤 Сон$"), handle_protocol),
@@ -1848,10 +1811,7 @@ def main():
     )
     application.add_handler(protocol_conv)
     
-    # Общий обработчик текста
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text_message))
-    
-    # Восстановление jobs при старте
     application.post_init = restore_jobs_on_startup
     
     logger.info("Бот запущен")
