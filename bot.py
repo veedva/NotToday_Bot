@@ -3,10 +3,10 @@ import random
 import json
 import os
 import asyncio
-from datetime import datetime, date, timedelta
+from datetime import datetime, time, date, timedelta
 from filelock import FileLock
-from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
-from telegram.ext import Application, CommandHandler, CallbackQueryHandler, ContextTypes, MessageHandler, filters
+from telegram import Update, ReplyKeyboardMarkup, KeyboardButton
+from telegram.ext import Application, CommandHandler, MessageHandler, filters, ContextTypes
 import pytz
 
 logging.basicConfig(
@@ -26,8 +26,6 @@ if not TOKEN:
 DATA_FILE = "user_data.json"
 LOCK_FILE = DATA_FILE + ".lock"
 MOSCOW_TZ = pytz.timezone('Europe/Moscow')
-
-# ======================= МЕССЕДЖИ =======================
 
 MORNING_MESSAGES = [
     "Привет. Давай сегодня не будем, хорошо?",
@@ -109,7 +107,7 @@ HELP_TECHNIQUES = [
     "🥜 Съешь горсть орехов или сыра. Белок и жиры стабилизируют сахар в крови.",
     "🎾 Сожми теннисный мячик до боли. 10 раз. Физический выброс адреналина через руки.",
     "💪 Поза силы 2 минуты: ноги широко, руки в боки, грудь вперёд.",
-    "🤔 HALT: голоден? злой? одинок? устал? Исправь хоть одно.",
+    "🤔 HALT: голоден? злой? одинок? устал? Исправь хотя бы одно.",
     "🌊 Urge Surfing: представь тягу как волну. Не борись — наблюдай со стороны.",
     "💬 Напиши любому: «Тяжко, брат». Стыдно? Именно поэтому это работает.",
     "💪 20 отжиманий до отказа. Пока тело в шоке — мозг забывает про дофаминовый голод."
@@ -182,68 +180,373 @@ RECOVERY_STAGES = [
 Это твоя новая реальность."""
 ]
 
-# Триггеры, искажения, факты — аналогично, с полным текстом
-# Сокращаю здесь для краткости, но в коде вставить все полностью как у тебя
+COGNITIVE_DISTORTIONS = [
+    """🤯 «Я ВСЁ ИСПОРТИЛ»
 
-# ======================= ДАННЫЕ =======================
+Ошибка мышления: катастрофизация.
+
+Факт: Один срыв ≠ конец пути.
+Мозг учится методом проб и ошибок. Каждая попытка укрепляет нейронные пути.
+
+Среднее число попыток до ремиссии — 3-5 раз.
+
+Ты не испортил. Ты учишься.""",
+    
+    """🤯 «НИЧЕГО НЕ РАБОТАЕТ»
+
+Ошибка мышления: чёрно-белое мышление.
+
+Факт: Работает, но медленно.
+Нейропластичность требует времени. CB1-рецепторы восстанавливаются 4-6 недель.
+
+Мозг меняется каждый день, но ты не видишь этого.
+
+Отсутствие мгновенного результата ≠ отсутствие результата.""",
+    
+    """🤯 «Я СЛАБЫЙ»
+
+Ошибка мышления: персонализация.
+
+Факт: Зависимость — болезнь, не слабость.
+Ты борешься с нейрохимическим дисбалансом. Это сложнее, чем кажется со стороны.
+
+85% людей срываются в первые 30 дней.
+
+Ты не слабый. Ты борешься с химией мозга.""",
+    
+    """🤯 «ВСЁ БЕССМЫСЛЕННО»
+
+Ошибка мышления: эмоциональное обоснование.
+
+Факт: Смысл появится через 2-3 недели.
+Сейчас мозг в режиме выживания. Дофамина мало — всё кажется серым.
+
+Это временное состояние, а не реальность.
+
+Чувство бессмысленности — симптом ломки, а не правда о жизни.""",
+    
+    """🤯 «У ДРУГИХ ПОЛУЧАЕТСЯ»
+
+Ошибка мышления: сравнение.
+
+Факт: У всех свои сроки.
+Ты видишь только результат, а не 5 попыток до него. Не 6 месяцев ломки. Не срывы.
+
+Каждый путь уникален.
+
+Сравнивай себя только с собой вчерашним.""",
+    
+    """🤯 «ОДИН РАЗ НЕ СЧИТАЕТСЯ»
+
+Ошибка мышления: минимизация.
+
+Факт: Каждый «один раз» считается.
+Мозг не делит на «разы». Дофаминовый всплеск = укрепление старой нейронной связи.
+
+Один раз = откат назад на неделю.
+
+Если «не считается» — зачем тогда хочется?"""
+]
+
+TRIGGERS_INFO = [
+    """⚠️ МЫСЛЬ «ХОЧУ»
+
+Мысль ≠ команда к действию.
+
+Что делать:
+• Наблюдай за мыслью как за облаком
+• Не спорь с ней, не убеждай себя
+• Просто заметь: «О, это снова мысль»
+• Через 3-7 минут она пройдёт сама
+
+Ты не обязан слушаться каждой мысли.""",
+    
+    """⚠️ СИЛЬНАЯ ЭМОЦИЯ
+
+Злость, грусть, тревога — маскируются под желание употребить.
+
+Что делать:
+• Назови эмоцию вслух: «Это злость»
+• Эмоции как волны — поднимаются и спадают
+• Не надо убегать от эмоции в вещество
+• Прожить эмоцию = стать сильнее
+
+Это пройдёт. Всегда проходит.""",
+    
+    """⚠️ СКУКА / БЕЗДЕЛЬЕ
+
+Мозг путает скуку с желанием употребить. Ему просто нужна стимуляция.
+
+Что делать:
+• Скука — это не тяга, это сигнал «займись чем-то»
+• 10 минут любой активности
+• Прогулка, уборка, звонок другу
+• Новый дофамин без вещества
+
+Скука лечится действием, а не веществом.""",
+    
+    """⚠️ СТРЕСС / ТРЕВОГА
+
+Тревога говорит: «Убеги!» Зависимость отвечает: «Знаю как».
+
+Что делать:
+• Тревога пройдёт через 15-20 минут
+• Дыхание 4-7-8: вдох 4, задержка 7, выдох 8
+• Холодная вода на лицо
+• Скажи вслух: «Я в безопасности сейчас»
+
+Тревога временная. Срыв — постоянный.""",
+    
+    """⚠️ КОМПАНИЯ / ОКРУЖЕНИЕ
+
+Самый сильный триггер. Социальное давление + привычная обстановка.
+
+Что делать:
+• Избегай первые 30 дней
+• Если нельзя избежать — заранее репетируй отказ
+• «Завязал», «Не хочу», «Мне нельзя»
+• Выходи из ситуации физически
+
+Твоя трезвость важнее чужого мнения."""
+]
+
+SCIENCE_FACTS = [
+    """🔬 CB1-РЕЦЕПТОРЫ
+
+Каннабиноидные рецепторы в мозге. ТГК их блокирует.
+
+Восстановление:
+• Первая неделя: +28% плотности
+• Две недели: +50%
+• 4 недели: почти полное восстановление
+• 6 недели: 100% восстановлены
+
+Каждый день без вещества — рецепторы восстанавливаются.""",
+    
+    """🔬 ДОФАМИНОВАЯ СИСТЕМА
+
+ТГК искусственно повышает дофамин в 2-3 раза. Мозг снижает собственное производство.
+
+Восстановление:
+• Неделя: производство всё ещё низкое
+• Две недели: начинает расти естественное производство
+• Месяц: дофамин почти в норме
+• 2-4 месяца: полное восстановление
+
+Мозг учится радоваться сам.""",
+    
+    """🔬 СОН И МЕЛАТОНИН
+
+ТГК нарушает REM-фазу сна. Мелатонин подавляется.
+
+Восстановление:
+• Первая неделя: бессонница, кошмары
+• 10-14 дней: сон становится глубже
+• 21 день: REM-фаза восстанавливается
+• Месяц: сон качественный
+
+Глубокий сон = восстановление мозга.""",
+    
+    """🔬 ПАМЯТЬ И ГИППОКАМП
+
+ТГК повреждает гиппокамп — центр памяти и обучения.
+
+Восстановление:
+• Две недели: краткосрочная память улучшается
+• Месяц: когнитивные функции +25%
+• Три месяца: почти полное восстановление
+• 6-12 месяцев: мозг работает как новый
+
+Ты станешь умнее. Буквально.""",
+    
+    """🔬 СТАТИСТИКА СРЫВОВ
+
+Реальные цифры:
+• 85% срываются в первые 30 дней
+• 60% — в первую неделю
+• Среднее число попыток: 3-5 раз
+• После 90 дней вероятность срыва падает до 15%
+
+Если сорвался — ты в большинстве. Главное — вернуться.""",
+    
+    """🔬 ПРЕФРОНТАЛЬНАЯ КОРА
+
+Центр воли и принятия решений. ТГК её угнетает.
+
+Что происходит:
+• Первая неделя: ноль мотивации
+• Две недели: появляются всплески энергии
+• Месяц: воля возвращается
+• Три месяца: стабильная мотивация
+
+Апатия временная. Это не ты — это химия.""",
+    
+    """🔬 BDNF (Brain-Derived Neurotrophic Factor)
+
+Белок роста мозга. ТГК снижает его производство.
+
+Восстановление:
+• Первые дни: BDNF на минимуме
+• 1-2 недели: начинает расти
+• Месяц: уровень нормализуется
+• 3 месяца: мозг строит новые связи
+
+Этот белок делает тебя умнее и устойчивее.""",
+    
+    """🔬 СЕРДЕЧНО-СОСУДИСТАЯ СИСТЕМА
+
+ТГК ускоряет пульс на 20-50%.
+
+Восстановление:
+• Первые 72 часа: пульс нормализуется
+• Неделя: давление стабилизируется
+• Месяц: сердечный ритм здоровый
+• 3 месяца: снижается риск сердечных проблем
+
+Твоё сердце скажет спасибо.""",
+    
+    """🔬 МОТИВАЦИЯ И АНГЕДОНИЯ
+
+Ангедония — неспособность получать удовольствие.
+
+Что происходит:
+• Дни 1-7: всё кажется серым
+• Неделя 2: появляются моменты радости
+• Месяц: естественные удовольствия возвращаются
+• 2-3 месяца: жизнь снова яркая
+
+Это не депрессия. Это мозг перезагружается.""",
+    
+    """🔬 НЕЙРОПЛАСТИЧНОСТЬ
+
+Способность мозга меняться и восстанавливаться.
+
+Факты:
+• В любом возрасте мозг может восстановиться
+• Каждый день без вещества укрепляет новые пути
+• Мозг помнит старые связи 6-12 месяцев
+• Новые привычки формируются за 21-90 дней
+
+Твой мозг сильнее, чем ты думаешь.""",
+    
+    """🔬 ГОРМОНАЛЬНЫЙ БАЛАНС
+
+Каннабис нарушает выработку гормонов.
+
+Восстановление:
+• Тестостерон: 2-4 недели до нормы
+• Кортизол (стресс): 3-6 недель
+• Мелатонин (сон): 2-3 недели
+• Серотонин (настроение): 4-8 недель
+
+Гормональный фон восстанавливается полностью.""",
+    
+    """🔬 КОГНИТИВНЫЕ ФУНКЦИИ
+
+Что улучшается после отказа:
+
+Через 2 недели:
+• Внимание +15%
+• Память +20%
+• Скорость реакции +10%
+
+Через месяц:
+• Креативность возвращается
+• Концентрация как раньше
+• Ясность мышления
+
+Мозг работает эффективнее без ТГК.""",
+    
+    """🔬 СОЦИАЛЬНОЕ ВОССТАНОВЛЕНИЕ
+
+Что меняется в общении:
+
+• 1 неделя: меньше тревоги в компаниях
+• 2 недели: возвращается искренний интерес
+• Месяц: общение без химической стимуляции
+• 3 месяца: настоящие эмоции, настоящие связи
+
+Ты снова учишься общаться по-настоящему.""",
+    
+    """🔬 ФИЗИЧЕСКОЕ ВОССТАНОВЛЕНИЕ
+
+Тело без ТГК:
+
+• Легкие: очищаются за 3-9 месяцев
+• Энергия: +40% через месяц
+• Аппетит: нормализуется за 2-3 недели
+• Иммунитет: укрепляется через 4-6 недель
+
+Тело знает, как восстанавливаться.""",
+    
+    """🔬 ЭКОНОМИКА ЗАВИСИМОСТИ
+
+Цифры, которые заставляют задуматься:
+
+Средние траты в месяц:
+• Трава: 10,000-30,000 ₽
+• Вейпы/картриджи: 15,000-50,000 ₽
+• Потерянный заработок: 20,000-50,000 ₽
+• Здоровье (косвенно): бесценно
+
+За год можно накопить на отпуск, машину, обучение."""
+]
 
 _user_data_cache = None
 _data_lock = asyncio.Lock()
 
 def get_main_keyboard():
-    buttons = [
-        [InlineKeyboardButton("✊ Держусь", callback_data="hold"),
-         InlineKeyboardButton("😔 Тяжело", callback_data="heavy")],
-        [InlineKeyboardButton("👋 Ты тут?", callback_data="are_you_here"),
-         InlineKeyboardButton("📊 Дни", callback_data="days")],
-        [InlineKeyboardButton("❤️ Спасибо", callback_data="thank_you"),
-         InlineKeyboardButton("⏸ Помолчи", callback_data="stop")]
-    ]
-    return InlineKeyboardMarkup(buttons)
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("✊ Держусь"), KeyboardButton("😔 Тяжело")],
+        [KeyboardButton("👋 Ты тут?"), KeyboardButton("📊 Дни")],
+        [KeyboardButton("❤️ Спасибо"), KeyboardButton("⏸ Помолчи")]
+    ], resize_keyboard=True)
 
 def get_start_keyboard():
-    return InlineKeyboardMarkup([[InlineKeyboardButton("▶ Начать", callback_data="start")]])
+    return ReplyKeyboardMarkup([[KeyboardButton("▶ Начать")]], resize_keyboard=True)
 
 def get_heavy_keyboard():
-    buttons = [
-        [InlineKeyboardButton("🔥 Сделать упражнение", callback_data="exercise"),
-         InlineKeyboardButton("🧠 Информация", callback_data="info")],
-        [InlineKeyboardButton("💔 Срыв", callback_data="breakdown"),
-         InlineKeyboardButton("↩ Назад", callback_data="back")]
-    ]
-    return InlineKeyboardMarkup(buttons)
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("💪 Упражнения"), KeyboardButton("🧠 Информация")],
+        [KeyboardButton("💔 Срыв"), KeyboardButton("↩ Назад")]
+    ], resize_keyboard=True)
 
 def get_info_keyboard():
-    buttons = [
-        [InlineKeyboardButton("📅 Стадии", callback_data="stages"),
-         InlineKeyboardButton("⚠️ Триггеры", callback_data="triggers")],
-        [InlineKeyboardButton("🤯 Искажения", callback_data="distortions"),
-         InlineKeyboardButton("🔬 Факты", callback_data="facts")],
-        [InlineKeyboardButton("↩ Назад", callback_data="back")]
-    ]
-    return InlineKeyboardMarkup(buttons)
-
-# ======================= ФУНКЦИИ ДЛЯ ДАННЫХ =======================
+    return ReplyKeyboardMarkup([
+        [KeyboardButton("📅 Стадии"), KeyboardButton("⚠️ Триггеры")],
+        [KeyboardButton("🤯 Искажения"), KeyboardButton("🔬 Факты")],
+        [KeyboardButton("↩ Назад")]
+    ], resize_keyboard=True)
 
 def load_data():
     global _user_data_cache
     if _user_data_cache is not None:
         return _user_data_cache
+    
     with FileLock(LOCK_FILE):
         if not os.path.exists(DATA_FILE):
             _user_data_cache = {}
             return _user_data_cache
+        
         try:
             with open(DATA_FILE, "r", encoding="utf-8") as f:
-                _user_data_cache = json.load(f)
-                return _user_data_cache
+                data = json.load(f)
+                _user_data_cache = data
+                return data
+        except json.JSONDecodeError:
+            logger.warning("Файл данных повреждён, создаём новый")
+            _user_data_cache = {}
+            return {}
         except Exception as e:
-            logger.warning(f"Ошибка загрузки данных: {e}")
+            logger.error(f"Ошибка загрузки данных: {e}")
             _user_data_cache = {}
             return {}
 
 async def save_data():
     global _user_data_cache
+    if _user_data_cache is None:
+        return
+    
     async with _data_lock:
         with FileLock(LOCK_FILE):
             try:
@@ -255,6 +558,7 @@ async def save_data():
 def get_user(user_id):
     data = load_data()
     uid = str(user_id)
+    
     if uid not in data:
         data[uid] = {
             "start_date": None,
@@ -264,80 +568,486 @@ def get_user(user_id):
             "last_hold_date": None,
             "last_hold_time": None,
             "last_stage_index": 0,
-            "used_tips": [], "used_triggers": [], "used_distortions": [], "used_facts": []
+            "used_tips": [],
+            "used_triggers": [],
+            "used_distortions": [],
+            "used_facts": []
         }
         asyncio.create_task(save_data())
+    
     return data[uid]
 
 async def save_user(user_id, updates=None):
     data = load_data()
     uid = str(user_id)
+    
     if updates:
         if uid not in data:
             data[uid] = {}
         data[uid].update(updates)
+    
     await save_data()
+
+def get_active_users():
+    data = load_data()
+    return [int(uid) for uid, user in data.items() if user.get("active", False)]
+
+def get_current_time():
+    return datetime.now(MOSCOW_TZ)
+
+def get_current_date():
+    return get_current_time().date()
 
 def get_days_since_start(user_id):
     user = get_user(user_id)
     if not user["start_date"]:
         return 0
+    
     try:
         start = date.fromisoformat(user["start_date"])
-        current = datetime.now(MOSCOW_TZ).date()
-        return max((current - start).days, 0)
+        current = get_current_date()
+        days = (current - start).days
+        return max(days, 0)
     except Exception as e:
         logger.error(f"Ошибка расчёта дней для {user_id}: {e}")
         return 0
 
-# ======================= ОБРАБОТКА КНОПОК =======================
+def format_days(days):
+    if 11 <= days % 100 <= 19:
+        return f"{days} дней"
+    if days % 10 == 1:
+        return f"{days} день"
+    if days % 10 in [2, 3, 4]:
+        return f"{days} дня"
+    return f"{days} дней"
 
-async def handle_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    query = update.callback_query
-    await query.answer()
-    data = query.data
-    chat_id = query.message.chat_id
+def get_next_exercise(user_id):
+    user = get_user(user_id)
+    used = user.get("used_tips", [])
+    
+    if len(used) >= len(HELP_TECHNIQUES):
+        used = []
+    
+    available = [i for i in range(len(HELP_TECHNIQUES)) if i not in used]
+    if not available:
+        available = list(range(len(HELP_TECHNIQUES)))
+        used = []
+    
+    choice = random.choice(available)
+    used.append(choice)
+    
+    asyncio.create_task(save_user(user_id, {"used_tips": used}))
+    
+    return HELP_TECHNIQUES[choice]
+
+def get_next_stage(user_id):
+    user = get_user(user_id)
+    last_index = user.get("last_stage_index", 0)
+    
+    stage_text = RECOVERY_STAGES[last_index]
+    next_index = (last_index + 1) % len(RECOVERY_STAGES)
+    
+    if next_index == 0:
+        stage_text += f"\n\n✨ Это была последняя стадия. Нажми ещё раз, чтобы начать сначала."
+    else:
+        stage_num = next_index + 1
+        stage_text += f"\n\n📌 Стадия {stage_num}/{len(RECOVERY_STAGES)}. Нажми ещё раз для следующей."
+    
+    asyncio.create_task(save_user(user_id, {"last_stage_index": next_index}))
+    
+    return stage_text
+
+def get_next_item(user_id, items_list, used_key):
+    user = get_user(user_id)
+    used = user.get(used_key, [])
+    
+    if len(used) >= len(items_list):
+        used = []
+    
+    available = [i for i in range(len(items_list)) if i not in used]
+    if not available:
+        available = list(range(len(items_list)))
+        used = []
+    
+    choice = random.choice(available)
+    used.append(choice)
+    
+    asyncio.create_task(save_user(user_id, {used_key: used}))
+    
+    return items_list[choice]
+
+async def reset_streak(user_id):
+    current = get_days_since_start(user_id)
+    user = get_user(user_id)
+    
+    if current > user.get("best_streak", 0):
+        await save_user(user_id, {"best_streak": current})
+    
+    await save_user(user_id, {
+        "start_date": get_current_date().isoformat(),
+        "last_stage_index": 0,
+        "hold_count_today": 0,
+        "last_hold_date": None,
+        "last_hold_time": None,
+        "used_tips": [],
+        "used_triggers": [],
+        "used_distortions": [],
+        "used_facts": []
+    })
+    
+    return current
+
+def remove_user_jobs(chat_id, job_queue):
+    removed = 0
+    for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}"]:
+        jobs = job_queue.get_jobs_by_name(name)
+        for job in jobs:
+            job.schedule_removal()
+            removed += 1
+    return removed
+
+def schedule_jobs(chat_id, job_queue):
+    existing_jobs = []
+    for name in [f"morning_{chat_id}", f"evening_{chat_id}", f"night_{chat_id}"]:
+        if job_queue.get_jobs_by_name(name):
+            existing_jobs.extend(job_queue.get_jobs_by_name(name))
+    
+    if existing_jobs:
+        remove_user_jobs(chat_id, job_queue)
+    
+    job_queue.run_daily(
+        send_morning,
+        time(9, 0, tzinfo=MOSCOW_TZ),
+        data={'chat_id': chat_id},
+        name=f"morning_{chat_id}"
+    )
+    job_queue.run_daily(
+        send_evening,
+        time(18, 0, tzinfo=MOSCOW_TZ),
+        data={'chat_id': chat_id},
+        name=f"evening_{chat_id}"
+    )
+    job_queue.run_daily(
+        send_night,
+        time(23, 0, tzinfo=MOSCOW_TZ),
+        data={'chat_id': chat_id},
+        name=f"night_{chat_id}"
+    )
+
+async def send_morning(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.data['chat_id']
     user = get_user(chat_id)
+    
+    if not user.get("active"):
+        return
+    
+    days = get_days_since_start(chat_id)
+    msg = random.choice(MORNING_MESSAGES)
+    
+    if days in MILESTONES:
+        msg += f"\n\n{MILESTONES[days]}"
+    
+    await context.bot.send_message(chat_id, msg, reply_markup=get_main_keyboard())
 
-    if data == "start":
-        await start_user(chat_id, context)
-    elif data == "stop":
-        await stop_user(chat_id, context)
-    elif data == "hold":
-        await handle_hold(query, context)
-    elif data == "heavy":
-        await query.edit_message_text("Что нужно?", reply_markup=get_heavy_keyboard())
-    elif data == "exercise":
-        tip = random.choice(HELP_TECHNIQUES)
-        await query.edit_message_text(tip, reply_markup=get_heavy_keyboard())
-    elif data == "info":
-        await query.edit_message_text("Выбери раздел:", reply_markup=get_info_keyboard())
-    elif data == "days":
-        days = get_days_since_start(chat_id)
-        await query.edit_message_text(f"Ты держишься {days} дней", reply_markup=get_main_keyboard())
-    elif data == "are_you_here":
-        await handle_are_you_here(query)
-    elif data == "thank_you":
-        await query.edit_message_text("Спасибо, что ты есть ❤️", reply_markup=get_main_keyboard())
-    # TODO: добавить обработку stages, triggers, distortions, facts и breakdown с сохранением всех стадий
+async def send_evening(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.data['chat_id']
+    user = get_user(chat_id)
+    
+    if not user.get("active"):
+        return
+    
+    await context.bot.send_message(
+        chat_id,
+        random.choice(EVENING_MESSAGES),
+        reply_markup=get_main_keyboard()
+    )
 
-# ======================= ЗАДЕРЖКА ДЛЯ "ТЫ ТУТ?" =======================
+async def send_night(context: ContextTypes.DEFAULT_TYPE):
+    chat_id = context.job.data['chat_id']
+    user = get_user(chat_id)
+    
+    if not user.get("active"):
+        return
+    
+    await context.bot.send_message(
+        chat_id,
+        random.choice(NIGHT_MESSAGES),
+        reply_markup=get_main_keyboard()
+    )
 
-async def handle_are_you_here(query):
-    first = random.choice(TU_TUT_FIRST)
-    second = random.choice(TU_TUT_SECOND)
+async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user = get_user(chat_id)
+    
+    was_active = user.get("active", False)
+    
+    await save_user(chat_id, {
+        "active": True,
+        "start_date": get_current_date().isoformat(),
+        "last_stage_index": 0,
+        "used_tips": [],
+        "used_triggers": [],
+        "used_distortions": [],
+        "used_facts": [],
+        "hold_count_today": 0,
+        "last_hold_date": None,
+        "last_hold_time": None
+    })
+    
+    if not was_active:
+        schedule_jobs(chat_id, context.application.job_queue)
+        logger.info(f"Созданы новые задачи для пользователя {chat_id}")
+    else:
+        logger.info(f"Пользователь {chat_id} уже активен, задачи не создаем")
+    
+    days = get_days_since_start(chat_id)
+    
+    if days == 0:
+        msg = (
+            "Привет, брат! 👋\n\n"
+            "Я буду писать три раза в день — просто напомнить: сегодня не стоит.\n\n"
+            "Когда тяжело — жми «✊ Держусь».\n"
+            "Все получат пуш. Так ты покажешь, что ещё здесь.\n"
+            "Можно жать до 5 раз в день, если совсем тяжело.\n\n"
+            "Держись, я рядом. 💪"
+        )
+    else:
+        msg = (
+            f"Привет. Ты держишься {format_days(days)}. Я рядом.\n\n"
+            "Я буду писать три раза в день — просто напомнить: сегодня не стоит.\n\n"
+            "Когда тяжело — жми «✊ Держусь».\n"
+            "Все получат пуш. Так ты покажешь, что ещё здесь.\n"
+            "Можно жать до 5 раз в день, если совсем тяжело.\n\n"
+            "Держись, я рядом. 💪"
+        )
+    
+    await update.message.reply_text(msg, reply_markup=get_main_keyboard())
+
+async def stop_command(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    
+    await save_user(chat_id, {"active": False})
+    removed = remove_user_jobs(chat_id, context.application.job_queue)
+    logger.info(f"Удалено {removed} джобов для {chat_id}")
+    
+    await update.message.reply_text(
+        "Уведомления остановлены.\nКогда будешь готов — жми ▶ Начать",
+        reply_markup=get_start_keyboard()
+    )
+
+async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user = get_user(chat_id)
+    
+    if not user.get("active"):
+        await update.message.reply_text(
+            "Сначала нажми ▶ Начать",
+            reply_markup=get_start_keyboard()
+        )
+        return
+    
+    current_time = get_current_time()
+    today_str = current_time.date().isoformat()
+    
+    if user.get("last_hold_date") != today_str:
+        await save_user(chat_id, {
+            "hold_count_today": 0,
+            "last_hold_date": today_str
+        })
+    
+    if user.get("last_hold_time"):
+        try:
+            last_time_str = user["last_hold_time"]
+            
+            try:
+                if 'T' in last_time_str:
+                    last_time = datetime.fromisoformat(last_time_str)
+                else:
+                    last_time = datetime.strptime(last_time_str, "%Y-%m-%d %H:%M:%S").replace(tzinfo=MOSCOW_TZ)
+            except ValueError:
+                last_time = current_time - timedelta(minutes=31)
+            
+            if last_time.tzinfo is None:
+                last_time = last_time.replace(tzinfo=MOSCOW_TZ)
+            
+            diff = (current_time - last_time).total_seconds()
+            if diff < 1800:
+                mins = int((1800 - diff) / 60) + 1
+                await update.message.reply_text(
+                    f"Подожди ещё {mins} {'минуту' if mins == 1 else 'минут'}.",
+                    reply_markup=get_main_keyboard()
+                )
+                return
+        except Exception as e:
+            logger.error(f"Ошибка проверки таймаута: {e}, last_time_str: {last_time_str}")
+    
+    if user.get("hold_count_today", 0) >= 5:
+        await update.message.reply_text(
+            "Сегодня уже 5 раз.\nЗавтра снова сможешь.",
+            reply_markup=get_main_keyboard()
+        )
+        return
+    
+    await save_user(chat_id, {
+        "last_hold_time": current_time.isoformat(),
+        "last_hold_date": today_str,
+        "hold_count_today": user.get("hold_count_today", 0) + 1
+    })
+    
+    await update.message.reply_text(
+        random.choice(HOLD_RESPONSES),
+        reply_markup=get_main_keyboard()
+    )
+    
+    active = get_active_users()
+    for uid in active:
+        if uid != chat_id:
+            try:
+                await context.bot.send_message(uid, "✊")
+                await asyncio.sleep(0.05)
+            except Exception as e:
+                error_str = str(e).lower()
+                if "blocked" in error_str or "chat not found" in error_str or "forbidden" in error_str:
+                    await save_user(uid, {"active": False})
+                    remove_user_jobs(uid, context.application.job_queue)
+                    logger.info(f"Деактивирован {uid}: заблокировал бота")
+
+async def handle_heavy(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Что нужно?", reply_markup=get_heavy_keyboard())
+
+async def handle_exercise(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    tip = get_next_exercise(update.effective_chat.id)
+    await update.message.reply_text(tip, reply_markup=get_heavy_keyboard())
+
+async def handle_info_menu(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Выбери раздел:", reply_markup=get_info_keyboard())
+
+async def handle_stages(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    stage_text = get_next_stage(chat_id)
+    await update.message.reply_text(stage_text, reply_markup=get_info_keyboard())
+
+async def handle_triggers(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    trigger = get_next_item(update.effective_chat.id, TRIGGERS_INFO, "used_triggers")
+    await update.message.reply_text(trigger, reply_markup=get_info_keyboard())
+
+async def handle_distortions(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    distortion = get_next_item(update.effective_chat.id, COGNITIVE_DISTORTIONS, "used_distortions")
+    await update.message.reply_text(distortion, reply_markup=get_info_keyboard())
+
+async def handle_facts(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    fact = get_next_item(update.effective_chat.id, SCIENCE_FACTS, "used_facts")
+    await update.message.reply_text(fact, reply_markup=get_info_keyboard())
+
+async def handle_breakdown(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    days_lost = await reset_streak(chat_id)
+    
+    msg = f"Счётчик сброшен. Ты продержался {format_days(days_lost)}.\n\n"
+    msg += "Это не провал. Это данные для следующей попытки.\n\n"
+    msg += "Когда будешь готов начать снова — жми ▶ Начать"
+    
+    await update.message.reply_text(msg, reply_markup=get_start_keyboard())
+
+async def handle_days(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    chat_id = update.effective_chat.id
+    user = get_user(chat_id)
+    days = get_days_since_start(chat_id)
+    best = user.get("best_streak", 0)
+    
+    if days == 0:
+        msg = "Ты только начинаешь. Первый день — самый важный."
+    else:
+        msg = f"Ты держишься {format_days(days)}."
+        if best > days:
+            msg += f"\n\nЛучший результат: {format_days(best)}"
+        elif best > 0 and best == days:
+            msg += f"\n\nЭто твой лучший результат прямо сейчас!"
+    
+    await update.message.reply_text(msg, reply_markup=get_main_keyboard())
+    
+    if days in MILESTONES:
+        await update.message.reply_text(MILESTONES[days], reply_markup=get_main_keyboard())
+
+async def handle_are_you_here(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await asyncio.sleep(random.randint(2, 6))
-    await query.edit_message_text(first, reply_markup=get_main_keyboard())
+    await update.message.reply_text(
+        random.choice(TU_TUT_FIRST),
+        reply_markup=get_main_keyboard()
+    )
     await asyncio.sleep(random.randint(2, 5))
-    await query.edit_message_text(f"{first}\n{second}", reply_markup=get_main_keyboard())
+    await update.message.reply_text(
+        random.choice(TU_TUT_SECOND),
+        reply_markup=get_main_keyboard()
+    )
 
-# ======================= ЗАПУСК =======================
+async def handle_thank_you(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    msg = (
+        "Спасибо тебе, что ты есть. ❤️\n\n"
+        "Если хочешь поддержать проект:\n"
+        "Сбер: 2202 2084 3481 5313\n\n"
+        "Любая сумма поможет развивать бота дальше.\n\n"
+        "Главное — держись."
+    )
+    await update.message.reply_text(msg, reply_markup=get_main_keyboard())
+
+async def handle_back(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("Окей", reply_markup=get_main_keyboard())
+
+async def handle_text(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    text = update.message.text
+    
+    if text == "▶ Начать":
+        await start_command(update, context)
+
+async def restore_jobs(application):
+    active = get_active_users()
+    logger.info(f"Восстанавливаем задания для {len(active)} пользователей")
+    
+    existing_jobs = list(application.job_queue.jobs())
+    
+    for user_id in active:
+        user_has_jobs = False
+        for job in existing_jobs:
+            if (hasattr(job, 'name') and str(user_id) in job.name) or \
+               (job.data and job.data.get('chat_id') == user_id):
+                user_has_jobs = True
+                break
+        
+        if not user_has_jobs:
+            schedule_jobs(user_id, application.job_queue)
+            logger.info(f"Восстановлены задачи для пользователя {user_id}")
 
 def main():
     application = Application.builder().token(TOKEN).build()
-    application.add_handler(CallbackQueryHandler(handle_callback))
+    
+    application.add_handler(CommandHandler("start", start_command))
+    application.add_handler(CommandHandler("stop", stop_command))
+    
+    application.add_handler(MessageHandler(filters.Regex("^✊ Держусь$"), handle_hold))
+    application.add_handler(MessageHandler(filters.Regex("^📊 Дни$"), handle_days))
+    application.add_handler(MessageHandler(filters.Regex("^😔 Тяжело$"), handle_heavy))
+    application.add_handler(MessageHandler(filters.Regex("^👋 Ты тут\?$"), handle_are_you_here))
+    application.add_handler(MessageHandler(filters.Regex("^❤️ Спасибо$"), handle_thank_you))
+    application.add_handler(MessageHandler(filters.Regex("^⏸ Помолчи$"), stop_command))
+    
+    application.add_handler(MessageHandler(filters.Regex("^💪 Упражнения$"), handle_exercise))
+    application.add_handler(MessageHandler(filters.Regex("^🧠 Информация$"), handle_info_menu))
+    application.add_handler(MessageHandler(filters.Regex("^💔 Срыв$"), handle_breakdown))
+    
+    application.add_handler(MessageHandler(filters.Regex("^📅 Стадии$"), handle_stages))
+    application.add_handler(MessageHandler(filters.Regex("^⚠️ Триггеры$"), handle_triggers))
+    application.add_handler(MessageHandler(filters.Regex("^🤯 Искажения$"), handle_distortions))
+    application.add_handler(MessageHandler(filters.Regex("^🔬 Факты$"), handle_facts))
+    
+    application.add_handler(MessageHandler(filters.Regex("^↩ Назад$"), handle_back))
+    application.add_handler(MessageHandler(filters.Regex("^▶ Начать$"), handle_text))
+    application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_text))
+    
+    application.post_init = restore_jobs
+    
+    logger.info("Бот запущен")
     application.run_polling(allowed_updates=Update.ALL_TYPES)
-    logger.info("Бот запущен!")
 
 if __name__ == "__main__":
     main()
