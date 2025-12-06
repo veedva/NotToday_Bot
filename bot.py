@@ -993,10 +993,9 @@ async def handle_hold(update: Update, context: ContextTypes.DEFAULT_TYPE):
             diff = (current_time - last_time).total_seconds()
             if diff < 1800:
                 await update.message.reply_text(
-                    "Погоди немного.\n\n"
-                    "Мы тебя услышали.\n"
-                    "✊\n\n"
-                    "Попробуй позже.",
+                    "Погоди полчаса, не отправляй так часто.\n"
+                    "Мы тебя услышали.\n\n"
+                    "✊",
                     reply_markup=get_main_keyboard()
                 )
                 return
